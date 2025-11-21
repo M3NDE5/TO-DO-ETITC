@@ -1,4 +1,6 @@
 import { useState } from "react";
+import crear from "../modulos/ingresoDatos";
+import eliminarTarea from "../modulos/eliminarDatos";
 
 const INITIAL_TASKS = ["Tarea 1..", "Tarea 2..", "Tarea 3..", "Tarea 4.."];
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -32,6 +34,8 @@ function Dashboard() {
     setTasks(tasks.filter((_, i) => i !== index));
   };
 
+
+  // RETURN = TODO LO QUE TIENE QUE VER CON HTML
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-center px-4 py-6">
       <div className="w-full max-w-6xl flex flex-col md:flex-row gap-6 h-full md:h-[90vh]">
@@ -163,7 +167,7 @@ function Dashboard() {
               </button>
 
               <button
-                onClick={addTask}
+                onClick={crear}
                 className="px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition"
               >
                 Agregar

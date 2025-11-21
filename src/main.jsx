@@ -6,7 +6,7 @@ import Home from './pages/Home.jsx'
 import Login from './pages/Login.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Register from './pages/Register.jsx'
-import ProtectedRoute from './components/ProtectedRoute.jsx'
+import ProtectedRoute from './componentes/ProtectedRoute.jsx'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -14,7 +14,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<App />}>
-          <Route index element={<Home />} />
+          <Route index element={<Dashboard />} />
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
 

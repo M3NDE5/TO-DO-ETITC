@@ -10,6 +10,7 @@ function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const uid = auth.currentUser.uid;
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -17,7 +18,7 @@ function Login() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       console.log("Inicio de sesión exitoso");
-      navigate("/home"); // redirige a tu sección principal
+      navigate("/dashboard"); // redirige a tu sección principal
     } catch (err) {
       console.error(err);
       if (err.code === "auth/invalid-credential") {
@@ -91,4 +92,4 @@ function Login() {
   );
 }
 
-export default Login;
+export default Login; // aqui estoy exportando el id del usuario de firebase y el componente

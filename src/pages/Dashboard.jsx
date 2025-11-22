@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc } from "firebase/firestore";
+import { db } from "../firebase";
 
 const WEEKDAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
@@ -12,7 +14,8 @@ const CO_HOLIDAYS = [
   "12-25", // Navidad
 ];
 
-const INITIAL_TASKS = ["Tarea 1..", "Tarea 2..", "Tarea 3..", "Tarea 4.."];
+// Estado inicial solo para mostrar algo mientras carga Firestore
+const INITIAL_TASKS = [];
 
 function isColHoliday(date) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -24,8 +27,16 @@ function Dashboard() {
   const today = new Date();
 
   const [tasks, setTasks] = useState(INITIAL_TASKS);
+  const [sessionId] = useState(() => crypto.randomUUID());
   const [showRightPanel, setShowRightPanel] = useState(false);
-  const [newTask, setNewTask] = useState("");
+  const [newTask, setNewTask] = useState({
+    name: "",
+    date: "",
+    time: "",
+    priority: "media",
+    status: "pendiente",
+    customPriority: "",
+  });
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
@@ -40,6 +51,23 @@ function Dashboard() {
     window.addEventListener("resize", checkSize);
     return () => window.removeEventListener("resize", checkSize);
   }, []);
+
+  // Cargar tareas de Firestore filtradas por sesión
+  useEffect(() => {
+    const q = query(
+      collection(db, "tareas"),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const loaded = snapshot.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((task) => task.sessionId === sessionId);
+      setTasks(loaded);
+    });
+
+    return unsubscribe;
+  }, [sessionId]);
 
   const displayedDate = useMemo(
     () =>
@@ -64,15 +92,44 @@ function Dashboard() {
     return Array.from({ length: daysInMonth }, (_, index) => index + 1);
   }, [currentMonth, currentYear]);
 
+  const handleInputChange = (event) => {
+    const { name, value } = event.target;
+    setNewTask((prev) => ({ ...prev, [name]: value }));
+  };
+
   const addTask = () => {
-    if (newTask.trim() === "") return;
-    setTasks((prev) => [...prev, newTask.trim()]);
-    setNewTask("");
+    if (!newTask.name.trim()) return;
+
+    const priorityValue =
+      newTask.priority === "personalizada" && newTask.customPriority.trim()
+        ? newTask.customPriority.trim()
+        : newTask.priority;
+
+    const taskToAdd = {
+      name: newTask.name.trim(),
+      date: newTask.date || "",
+      time: newTask.time || "",
+      priority: priorityValue,
+      status: newTask.status,
+      topic: newTask.topic?.trim() || "",
+      sessionId,
+      createdAt: new Date(),
+    };
+
+    addDoc(collection(db, "tareas"), taskToAdd);
+    setNewTask({
+      name: "",
+      date: "",
+      time: "",
+      priority: "media",
+      status: "pendiente",
+      customPriority: "",
+    });
     setShowRightPanel(false);
   };
 
-  const deleteTask = (index) => {
-    setTasks((prev) => prev.filter((_, i) => i !== index));
+  const deleteTask = (taskId) => {
+    deleteDoc(doc(db, "tareas", taskId));
   };
 
   const goToPrevMonth = () => {
@@ -221,7 +278,7 @@ function Dashboard() {
           <section className="space-y-4 flex-1 overflow-auto">
             {tasks.map((task, index) => (
               <div
-                key={index}
+                key={task.id ?? index}
                 className="bg-slate-100 text-slate-900 rounded-2xl px-6 py-4 flex items-center justify-between shadow-md"
               >
                 <div className="flex items-center gap-4">
@@ -232,11 +289,19 @@ function Dashboard() {
                   >
                     {index === 0 && <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />}
                   </span>
-                  <span className="text-sm font-medium">{task}</span>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">{task.name}</span>
+                    <span className="text-[11px] text-slate-500">
+                      {task.date && task.time ? `${task.date} • ${task.time}` : null}
+                    </span>
+                    <span className="text-[11px] text-slate-500 capitalize">
+                      Prioridad: {task.priority} • Estado: {task.status}
+                    </span>
+                  </div>
                 </div>
 
                 <button
-                  onClick={() => deleteTask(index)}
+                  onClick={() => deleteTask(task.id)}
                   className="w-7 h-7 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center shadow"
                 >
                   <span className="material-icons text-[16px]">close</span>
@@ -259,19 +324,120 @@ function Dashboard() {
         {showRightPanel && (
           <aside className="w-full lg:w-80 bg-indigo-900/95 rounded-3xl p-5 md:p-6 shadow-2xl border border-indigo-800 flex flex-col gap-4 animate-fadeIn">
             <h2 className="text-center text-lg md:text-xl font-semibold">Crear Tarea</h2>
+
             <div className="flex flex-col gap-3 flex-1">
-              <label className="text-xs font-medium" htmlFor="task-name">
-                Nombre
-              </label>
-              <input
-                id="task-name"
-                type="text"
-                value={newTask}
-                onChange={(e) => setNewTask(e.target.value)}
-                placeholder="Escribe la tarea..."
-                className="w-full rounded-xl bg-indigo-700/60 px-4 py-2 text-sm placeholder-indigo-200 border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-              />
+              {/* Nombre */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium" htmlFor="task-name">
+                  Nombre
+                </label>
+                <input
+                  id="task-name"
+                  name="name"
+                  type="text"
+                  value={newTask.name}
+                  onChange={handleInputChange}
+                  placeholder="Escribe la tarea..."
+                  className="w-full rounded-xl bg-indigo-700/60 px-4 py-2 text-sm placeholder-indigo-200 border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                />
+              </div>
+
+              {/* Fecha */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium" htmlFor="task-date">
+                  Fecha
+                </label>
+                <input
+                  id="task-date"
+                  name="date"
+                  type="date"
+                  value={newTask.date}
+                  onChange={handleInputChange}
+                  className="w-full rounded-xl bg-indigo-700/60 px-4 py-2 text-sm border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                />
+              </div>
+
+              {/* Hora */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium" htmlFor="task-time">
+                  Hora
+                </label>
+                <input
+                  id="task-time"
+                  name="time"
+                  type="time"
+                  value={newTask.time}
+                  onChange={handleInputChange}
+                  className="w-full rounded-xl bg-indigo-700/60 px-4 py-2 text-sm border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                />
+              </div>
+
+              {/* Prioridad */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium" htmlFor="task-priority">
+                  Prioridad
+                </label>
+                <select
+                  id="task-priority"
+                  name="priority"
+                  value={newTask.priority}
+                  onChange={handleInputChange}
+                  className="w-full rounded-xl bg-indigo-700/60 px-4 py-2 text-sm border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                >
+                  <option value="alta">Alta</option>
+                  <option value="media">Media</option>
+                  <option value="baja">Baja</option>
+                  <option value="personalizada">Personalizada</option>
+                </select>
+
+                {newTask.priority === "personalizada" && (
+                  <input
+                    name="customPriority"
+                    type="text"
+                    value={newTask.customPriority}
+                    onChange={handleInputChange}
+                    placeholder="Escribe la prioridad"
+                    className="w-full mt-1 rounded-xl bg-indigo-700/60 px-4 py-2 text-sm placeholder-indigo-200 border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  />
+                )}
+              </div>
+
+              {/* Estado */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium" htmlFor="task-status">
+                  Estado
+                </label>
+                <select
+                  id="task-status"
+                  name="status"
+                  value={newTask.status}
+                  onChange={handleInputChange}
+                  className="w-full rounded-xl bg-indigo-700/60 px-4 py-2 text-sm border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                >
+                  <option value="pendiente">Pendiente</option>
+                  <option value="trabajando">Trabajándola</option>
+                  <option value="ejecutando">Ejecutando</option>
+                  <option value="finalizada">Finalizada</option>
+                </select>
+              </div>
+
+              {/* Tema / descripción corta */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium" htmlFor="task-topic">
+                  Tema / descripción
+                </label>
+                <input
+                  id="task-topic"
+                  name="topic"
+                  type="text"
+                  value={newTask.topic || ""}
+                  onChange={handleInputChange}
+                  placeholder="Por ejemplo: Parcial de matemáticas"
+                  className="w-full rounded-xl bg-indigo-700/60 px-4 py-2 text-sm placeholder-indigo-200 border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                />
+              </div>
             </div>
+
             <button
               type="button"
               onClick={addTask}

@@ -1,58 +1,130 @@
-import { useState } from "react";
-import crear from "../modulos/ingresoDatos";
-import eliminarTarea from "../modulos/eliminarDatos";
+import { useEffect, useMemo, useState } from "react";
+
+const WEEKDAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+// Lista simplificada de festivos de Colombia (solo fecha, sin año específico)
+const CO_HOLIDAYS = [
+  "01-01", // Año Nuevo
+  "05-01", // Día del Trabajo
+  "07-20", // Independencia de Colombia
+  "08-07", // Batalla de Boyacá
+  "12-08", // Inmaculada Concepción
+  "12-25", // Navidad
+];
 
 const INITIAL_TASKS = ["Tarea 1..", "Tarea 2..", "Tarea 3..", "Tarea 4.."];
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function isColHoliday(date) {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return CO_HOLIDAYS.includes(`${month}-${day}`);
+}
 
 function Dashboard() {
-  const [tasks, setTasks] = useState(INITIAL_TASKS);
-  const [showModal, setShowModal] = useState(false);
-  const [newTask, setNewTask] = useState("");
-
   const today = new Date();
 
-  const formattedDate = today.toLocaleDateString("es-ES", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
+  const [tasks, setTasks] = useState(INITIAL_TASKS);
+  const [showRightPanel, setShowRightPanel] = useState(false);
+  const [newTask, setNewTask] = useState("");
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(today.getMonth());
+  const [currentYear, setCurrentYear] = useState(today.getFullYear());
 
-  const monthName = today.toLocaleDateString("en-US", { month: "long" });
-  const year = today.getFullYear();
+  const [isDesktop, setIsDesktop] = useState(false);
 
-  const calendarDays = Array.from({ length: 31 }, (_, index) => index + 1);
+  useEffect(() => {
+    const checkSize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    checkSize();
+    window.addEventListener("resize", checkSize);
+    return () => window.removeEventListener("resize", checkSize);
+  }, []);
+
+  const displayedDate = useMemo(
+    () =>
+      today.toLocaleDateString("es-ES", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      }),
+    [today]
+  );
+
+  const monthName = useMemo(
+    () =>
+      new Date(currentYear, currentMonth, 1).toLocaleDateString("es-ES", {
+        month: "long",
+      }),
+    [currentMonth, currentYear]
+  );
+
+  const calendarDays = useMemo(() => {
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    return Array.from({ length: daysInMonth }, (_, index) => index + 1);
+  }, [currentMonth, currentYear]);
 
   const addTask = () => {
     if (newTask.trim() === "") return;
-    setTasks([...tasks, newTask]);
+    setTasks((prev) => [...prev, newTask.trim()]);
     setNewTask("");
-    setShowModal(false);
+    setShowRightPanel(false);
   };
 
   const deleteTask = (index) => {
-    setTasks(tasks.filter((_, i) => i !== index));
+    setTasks((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const goToPrevMonth = () => {
+    setCurrentMonth((prev) => {
+      if (prev === 0) {
+        setCurrentYear((y) => y - 1);
+        return 11;
+      }
+      return prev - 1;
+    });
+  };
+
+  const goToNextMonth = () => {
+    setCurrentMonth((prev) => {
+      if (prev === 11) {
+        setCurrentYear((y) => y + 1);
+        return 0;
+      }
+      return prev + 1;
+    });
   };
 
 
   // RETURN = TODO LO QUE TIENE QUE VER CON HTML
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-center px-4 py-6">
-      <div className="w-full max-w-6xl flex flex-col md:flex-row gap-6 h-full md:h-[90vh]">
+    <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col">
+      {/* Contenido principal */}
+      <div className="flex-1 flex items-center justify-center px-3 md:px-6 py-4 md:py-6">
+        <div className="w-full max-w-6xl flex flex-col lg:flex-row gap-4 md:gap-6 h-full lg:h-[92vh]">
         {/* Sidebar */}
-        <aside className="md:w-64 bg-slate-900/80 rounded-3xl p-6 flex flex-col justify-between shadow-2xl border border-slate-800">
+        <aside className="lg:w-64 bg-slate-900/80 rounded-3xl p-5 md:p-6 flex flex-col justify-between shadow-2xl border border-slate-800">
           <div>
             <h1 className="text-xl font-extrabold tracking-wide mb-6">TO DO ETITC</h1>
 
-            <section className="mb-6">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-300 mb-2">
-                Tareas pendientes
-              </h2>
-              <div className="space-y-2">
-                <div className="h-4 rounded-full bg-emerald-400/80" />
-                <div className="h-4 rounded-full bg-emerald-400/60" />
-                <div className="h-4 rounded-full bg-emerald-400/40" />
-              </div>
+            <section className="mb-4">
+              <button
+                type="button"
+                onClick={() => setIsSidebarExpanded((prev) => !prev)}
+                className="w-full flex items-center justify-between text-left text-xs font-semibold uppercase tracking-wide text-slate-300 mb-2"
+              >
+                <span>Tareas pendientes</span>
+                <span className="material-icons text-sm">
+                  {isSidebarExpanded ? "expand_less" : "expand_more"}
+                </span>
+              </button>
+              {isSidebarExpanded && (
+                <div className="space-y-2 text-[11px] text-slate-200">
+                  <p>- Organiza tus actividades diarias</p>
+                  <p>- Marca las tareas completadas</p>
+                  <p>- Elimina lo que ya no necesites</p>
+                </div>
+              )}
             </section>
 
             <section aria-label="Calendario">
@@ -60,12 +132,28 @@ function Dashboard() {
                 <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-300">
                   Calendario
                 </h2>
+                <div className="flex items-center gap-1 text-[10px]">
+                  <button
+                    type="button"
+                    onClick={goToPrevMonth}
+                    className="material-icons text-slate-300 hover:text-white text-xs"
+                  >
+                    chevron_left
+                  </button>
+                  <button
+                    type="button"
+                    onClick={goToNextMonth}
+                    className="material-icons text-slate-300 hover:text-white text-xs"
+                  >
+                    chevron_right
+                  </button>
+                </div>
               </div>
 
               <div className="bg-slate-800 rounded-2xl p-4 text-xs text-slate-100">
                 <div className="flex items-baseline justify-between mb-2">
                   <span className="font-semibold">{monthName}</span>
-                  <span className="text-[10px] text-slate-300">{year}</span>
+                  <span className="text-[10px] text-slate-300">{currentYear}</span>
                 </div>
                 <div className="grid grid-cols-7 gap-1 text-[10px] text-center text-slate-300 mb-1">
                   {WEEKDAYS.map((day) => (
@@ -73,9 +161,26 @@ function Dashboard() {
                   ))}
                 </div>
                 <div className="grid grid-cols-7 gap-1 text-[10px] text-center">
-                  {calendarDays.map((day) => (
-                    <span key={day}>{day}</span>
-                  ))}
+                  {calendarDays.map((day) => {
+                    const date = new Date(currentYear, currentMonth, day);
+                    const isToday =
+                      date.getDate() === today.getDate() &&
+                      date.getMonth() === today.getMonth() &&
+                      date.getFullYear() === today.getFullYear();
+                    const isHoliday = isColHoliday(date);
+
+                    const baseClass = "inline-flex items-center justify-center rounded-full px-1 py-[2px]";
+
+                    let colorClass = "text-slate-100";
+                    if (isHoliday) colorClass = "text-red-400 font-semibold";
+                    if (isToday) colorClass = "bg-rose-500 text-white font-semibold";
+
+                    return (
+                      <span key={day} className={`${baseClass} ${colorClass}`}>
+                        {day}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
             </section>
@@ -89,7 +194,9 @@ function Dashboard() {
                 <p className="text-[10px] text-slate-400">Estudiante</p>
               </div>
             </div>
-            <button className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-sm" />
+            <button className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-sm">
+              <span className="material-icons text-[16px]">settings</span>
+            </button>
           </div>
         </aside>
 
@@ -97,12 +204,17 @@ function Dashboard() {
         <main className="flex-1 bg-slate-900/70 rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-800 flex flex-col">
           <header className="flex items-center justify-between mb-8">
             <h2 className="text-2xl md:text-4xl font-semibold tracking-wide truncate pr-4">
-              {formattedDate}
+              {displayedDate}
             </h2>
-            <button className="w-10 h-10 rounded-full border border-slate-500 flex flex-col items-center justify-center gap-1">
-              <span className="block w-5 h-[2px] bg-white rounded" />
-              <span className="block w-5 h-[2px] bg-white rounded" />
-              <span className="block w-5 h-[2px] bg-white rounded" />
+            <button
+              type="button"
+              onClick={() => setShowRightPanel((prev) => !prev)}
+              className="w-10 h-10 rounded-full border border-slate-500 flex items-center justify-center"
+              aria-label="Abrir menú principal"
+            >
+              <span className="material-icons">
+                {showRightPanel ? "close" : "menu"}
+              </span>
             </button>
           </header>
 
@@ -127,7 +239,7 @@ function Dashboard() {
                   onClick={() => deleteTask(index)}
                   className="w-7 h-7 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center shadow"
                 >
-                  X
+                  <span className="material-icons text-[16px]">close</span>
                 </button>
               </div>
             ))}
@@ -135,46 +247,64 @@ function Dashboard() {
 
           <div className="flex justify-end mt-8">
             <button
-              onClick={() => setShowModal(true)}
+              onClick={() => setShowRightPanel(true)}
               className="w-12 h-12 rounded-full bg-white text-slate-900 flex items-center justify-center text-3xl font-light shadow-lg border border-slate-300"
+              aria-label="Nueva tarea"
             >
-              +
+              <span className="material-icons text-[26px]">add</span>
             </button>
           </div>
         </main>
+        {/* Panel derecho / formulario nueva tarea (se muestra en desktop y como slide en mobile) */}
+        {showRightPanel && (
+          <aside className="w-full lg:w-80 bg-indigo-900/95 rounded-3xl p-5 md:p-6 shadow-2xl border border-indigo-800 flex flex-col gap-4 animate-fadeIn">
+            <h2 className="text-center text-lg md:text-xl font-semibold">Crear Tarea</h2>
+            <div className="flex flex-col gap-3 flex-1">
+              <label className="text-xs font-medium" htmlFor="task-name">
+                Nombre
+              </label>
+              <input
+                id="task-name"
+                type="text"
+                value={newTask}
+                onChange={(e) => setNewTask(e.target.value)}
+                placeholder="Escribe la tarea..."
+                className="w-full rounded-xl bg-indigo-700/60 px-4 py-2 text-sm placeholder-indigo-200 border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={addTask}
+              className="mt-2 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white py-3 flex items-center justify-center gap-2 text-sm font-medium shadow-lg transition"
+            >
+              <span className="material-icons text-[18px]">save</span>
+              <span>Guardar tarea</span>
+            </button>
+          </aside>
+        )}
+        </div>
       </div>
 
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 transition">
-          <div className="bg-white text-slate-900 rounded-3xl w-80 p-6 shadow-2xl animate-fadeIn">
-            <h2 className="text-xl font-semibold mb-4 text-center">Nueva Tarea</h2>
-
-            <input
-              type="text"
-              value={newTask}
-              onChange={(e) => setNewTask(e.target.value)}
-              placeholder="Escribe la tarea..."
-              className="w-full p-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-
-            <div className="flex justify-between mt-6">
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 rounded-lg bg-slate-300 text-slate-800 font-medium hover:bg-slate-400 transition"
-              >
-                Cancelar
-              </button>
-
-              <button
-                onClick={crear}
-                className="px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition"
-              >
-                Agregar
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Menú inferior para mobile */}
+      {!isDesktop && (
+        <nav className="sticky bottom-0 w-full bg-slate-950/95 border-t border-slate-800 flex items-center justify-around py-2 text-xs">
+          <button type="button" className="flex flex-col items-center gap-1 text-slate-100">
+            <span className="material-icons text-[20px]">home</span>
+            <span>Inicio</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowRightPanel(true)}
+            className="flex flex-col items-center gap-1 text-slate-100"
+          >
+            <span className="material-icons text-[20px]">add_circle</span>
+            <span>Nueva</span>
+          </button>
+          <button type="button" className="flex flex-col items-center gap-1 text-slate-100">
+            <span className="material-icons text-[20px]">settings</span>
+            <span>Opciones</span>
+          </button>
+        </nav>
       )}
     </div>
   );

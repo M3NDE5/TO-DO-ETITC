@@ -5,6 +5,8 @@ import { auth } from "../firebase";
 import { useNavigate } from "react-router-dom";
 import { handleLogout } from "../context/AuthContext";
 import { getAuthSession } from '../context/AuthContext';
+import { db } from "../firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 
 const WEEKDAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -156,12 +158,30 @@ function Dashboard() {
   const [user, setUser] = useState({ displayName: '', role: '' });
 
 useEffect(() => {
-    getAuthSession().then(user => {
-      // manejar user
-      console.log('Usuario autenticado:', user);
-      setUser(user);
+    getAuthSession().then(async (firebaseUser) => {
+      if (!firebaseUser) {
+        setUser({ displayName: '', role: '', photoURL: '' });
+        return;
+      }
+      // obtener datos adicionales desde Firestore (role, photoURL guardado)
+      try {
+        const userDoc = await getDoc(doc(db, 'usuarios', firebaseUser.uid));
+        const userData = userDoc.exists() ? userDoc.data() : {};
+        setUser({
+          displayName: firebaseUser.displayName || userData.nombre || '',
+          role: userData.role || '',
+          photoURL: firebaseUser.photoURL || userData.photoURL || ''
+        });
+      } catch (err) {
+        console.error('Error al obtener usuario Firestore:', err);
+        setUser({
+          displayName: firebaseUser.displayName || '',
+          role: '',
+          photoURL: firebaseUser.photoURL || ''
+        });
+      }
     });
-    }, []);
+  }, []);
 
   // RETURN = TODO LO QUE TIENE QUE VER CON HTML
   return (
@@ -258,7 +278,11 @@ useEffect(() => {
               onClick={() => setShowMenu((prev) => !prev)}
           >
             <div className="flex items-center gap-3 ">
-              <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center" />
+              {user.photoURL ? (
+                <img src={user.photoURL} alt="avatar" className="w-9 h-9 rounded-full object-cover" />
+              ) : (
+                <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center" />
+              )}
               <div>
                 <p className="font-semibold leading-tight">{user.displayName}</p>
                 <p className="text-[10px] text-slate-400">{user.role}</p>

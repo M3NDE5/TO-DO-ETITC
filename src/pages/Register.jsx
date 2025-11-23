@@ -5,6 +5,9 @@ import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { Link } from "react-router-dom";
 import { setDoc, doc } from "firebase/firestore";
+// Configuración Cloudinary
+const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dh1bzvq15/image/upload";
+const CLOUDINARY_UPLOAD_PRESET = "Fotos de Perfil";
 
 // Si tienes funciones de perfil en AuthContext, podrías importarlas aquí
 // import { useAuth } from "../context/AuthContext";
@@ -13,6 +16,7 @@ function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("");
+  const [profileImage, setProfileImage] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -24,13 +28,31 @@ function Register() {
       // Crear usuario en Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-      // Actualizar displayName en perfil de usuario
-      await updateProfile(user, { displayName: nombre });
-      // Guardar rol y nombre en Firestore (usando db de firebase.js)
+      // Si el usuario subió imagen, subirla a Cloudinary y obtener URL
+      let photoURL = null;
+      if (profileImage) {
+        const formData = new FormData();
+        formData.append("file", profileImage);
+        formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+        const res = await fetch(CLOUDINARY_URL, {
+          method: "POST",
+          body: formData,
+        });
+        const data = await res.json();
+        photoURL = data.secure_url;
+      }
+
+      // Actualizar displayName y photoURL en perfil de usuario
+      const profileData = { displayName: nombre };
+      if (photoURL) profileData.photoURL = photoURL;
+      await updateProfile(user, profileData);
+
+      // Guardar rol, nombre y photoURL en Firestore (usando db de firebase.js)
       await setDoc(doc(db, "usuarios", user.uid), {
         nombre,
         email,
         role,
+        photoURL: photoURL || null,
         uid: user.uid,
         creado: new Date()
       });
@@ -39,6 +61,7 @@ function Register() {
       setEmail("");
       setPassword("");
       setRole("");
+      setProfileImage(null);
     } catch (err) {
       console.error(err);
       if (err.code === "auth/email-already-in-use") {
@@ -111,6 +134,21 @@ function Register() {
                 className="flex-1 bg-transparent text-gray-100 placeholder-gray-400 text-base focus:outline-none"
                 required
                 autoComplete="new-password"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-gray-300 text-xs md:text-sm font-semibold uppercase tracking-wide mb-1" htmlFor="profileImage">
+              Foto de perfil (opcional)
+            </label>
+            <div className="flex items-center gap-3 bg-[#545b88] rounded-xl shadow-md px-4 py-3">
+              <input
+                id="profileImage"
+                type="file"
+                accept="image/*"
+                onChange={(e) => setProfileImage(e.target.files[0] ?? null)}
+                className="flex-1 bg-transparent text-gray-100 placeholder-gray-400 text-base focus:outline-none"
               />
             </div>
           </div>

@@ -40,19 +40,20 @@ export async function getAuthSession() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       unsubscribe();
       if (currentUser) {
-        // Consultar Firestore para obtener el rol
         try {
           const docRef = doc(db, "usuarios", currentUser.uid);
           const docSnap = await getDoc(docRef);
           let role = null;
+          let photoURL = currentUser.photoURL || null;
           if (docSnap.exists()) {
-            role = docSnap.data().role || null;
+            const data = docSnap.data();
+            role = data.role || null;
+            if (data.photoURL) photoURL = data.photoURL;
           }
-          // Retornar el usuario con el campo role
-          resolve({ ...currentUser, role });
+          // Retornar el usuario con role y photoURL
+          resolve({ ...currentUser, role, photoURL });
         } catch (error) {
-          // Si falla la consulta, retorna el usuario sin role
-          resolve({ ...currentUser, role: null });
+          resolve({ ...currentUser, role: null, photoURL: currentUser.photoURL || null });
         }
       } else {
         resolve(null);

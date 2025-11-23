@@ -42,7 +42,7 @@ function Dashboard() {
   const [showMenu, setShowMenu] = useState(false);
 
   const [tasks, setTasks] = useState(INITIAL_TASKS);
-  const [sessionId] = useState(() => crypto.randomUUID());
+  // Eliminamos sessionId, usaremos userId
   const [showRightPanel, setShowRightPanel] = useState(false);
   const [newTask, setNewTask] = useState({
     name: "",
@@ -67,10 +67,7 @@ function Dashboard() {
     return () => window.removeEventListener("resize", checkSize);
   }, []);
 
-  useEffect(() => {
-    const unsubscribe = suscribirTareas(sessionId, setTasks);
-    return unsubscribe;
-  }, [sessionId]);
+
 
   const displayedDate = useMemo(
     () =>
@@ -101,7 +98,7 @@ function Dashboard() {
   };
 
   const addTask = () => {
-    if (!newTask.name.trim()) return;
+    if (!newTask.name.trim() || !user || !user.uid) return;
 
     const priorityValue =
       newTask.priority === "personalizada" && newTask.customPriority.trim()
@@ -115,11 +112,10 @@ function Dashboard() {
       priority: priorityValue,
       status: newTask.status,
       topic: newTask.topic?.trim() || "",
-      sessionId,
       createdAt: new Date(),
     };
 
-    crearTarea(taskToAdd);
+    crearTarea(taskToAdd, user.uid);
     setNewTask({
       name: "",
       date: "",
@@ -155,12 +151,12 @@ function Dashboard() {
     });
   };
 
-  const [user, setUser] = useState({ displayName: '', role: '' });
+  const [user, setUser] = useState({ displayName: '', role: '', uid: '' });
 
 useEffect(() => {
     getAuthSession().then(async (firebaseUser) => {
       if (!firebaseUser) {
-        setUser({ displayName: '', role: '', photoURL: '' });
+        setUser({ displayName: '', role: '', photoURL: '', uid: '' });
         return;
       }
       // obtener datos adicionales desde Firestore (role, photoURL guardado)
@@ -170,19 +166,28 @@ useEffect(() => {
         setUser({
           displayName: firebaseUser.displayName || userData.nombre || '',
           role: userData.role || '',
-          photoURL: firebaseUser.photoURL || userData.photoURL || ''
+          photoURL: firebaseUser.photoURL || userData.photoURL || '',
+          uid: firebaseUser.uid
         });
       } catch (err) {
         console.error('Error al obtener usuario Firestore:', err);
         setUser({
           displayName: firebaseUser.displayName || '',
           role: '',
-          photoURL: firebaseUser.photoURL || ''
+          photoURL: firebaseUser.photoURL || '',
+          uid: firebaseUser.uid
         });
       }
     });
   }, []);
 
+    // Suscribirse a tareas del usuario autenticado
+  useEffect(() => {
+    if (!user || !user.uid) return;
+    const unsubscribe = suscribirTareas(user.uid, setTasks);
+    return unsubscribe;
+  }, [user]);
+  
   // RETURN = TODO LO QUE TIENE QUE VER CON HTML
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col">

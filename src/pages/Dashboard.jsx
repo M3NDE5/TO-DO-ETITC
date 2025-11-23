@@ -257,6 +257,12 @@ function Dashboard() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editTask, setEditTask] = useState(null);
 
+  // Estado para mejorar drag & drop (outline + posición exacta)
+  const [draggingTaskId, setDraggingTaskId] = useState(null);
+  const [dragOverColumn, setDragOverColumn] = useState(null);
+  const [dragOverTaskId, setDragOverTaskId] = useState(null);
+  const [dragInsertBefore, setDragInsertBefore] = useState(true);
+
   const handleDeleteClick = (taskId) => {
     setTaskToDelete(taskId);
     setShowDeleteModal(true);
@@ -623,23 +629,80 @@ function Dashboard() {
                       const id = e.dataTransfer.getData("text/task-id");
                       if (!id) return;
                       const newStatus = col.key === "pendiente" ? "pendiente" : col.key === "ejecutando" ? "ejecutando" : "finalizada";
-                      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status: newStatus } : t)));
-                      actualizarTarea(id, { status: newStatus }).catch((err) => {
-                        console.error("Error actualizando estado:", err);
+                      setTasks((prev) => {
+                        const dragged = prev.find((t) => t.id === id);
+                        if (!dragged) return prev;
+                        const targetStatusLower = newStatus.toLowerCase();
+                        const others = prev.filter((t) => t.id !== id);
+                        const targetTasks = others.filter(
+                          (t) => (t.status || '').toLowerCase() === targetStatusLower
+                        );
+                        const nonTarget = others.filter(
+                          (t) => (t.status || '').toLowerCase() !== targetStatusLower
+                        );
+                        let insertionIdx = targetTasks.length; // default append
+                        if (dragOverTaskId) {
+                          const idx = targetTasks.findIndex((t) => t.id === dragOverTaskId);
+                          if (idx !== -1) {
+                            insertionIdx = dragInsertBefore ? idx : idx + 1;
+                          }
+                        }
+                        const updatedDragged = { ...dragged, status: newStatus };
+                        const newTarget = [
+                          ...targetTasks.slice(0, insertionIdx),
+                          updatedDragged,
+                          ...targetTasks.slice(insertionIdx),
+                        ];
+                        // Agrupamos manteniendo otras tareas primero y luego las del status destino
+                        return [...nonTarget, ...newTarget];
                       });
+                      actualizarTarea(id, { status: newStatus }).catch((err) => console.error("Error actualizando estado:", err));
+                      // limpiar estados de drag
+                      setDraggingTaskId(null);
+                      setDragOverColumn(null);
+                      setDragOverTaskId(null);
+                      setDragInsertBefore(true);
                     }}
-                    className="flex flex-col bg-slate-800/50 backdrop-blur border border-slate-700/60 rounded-2xl p-3 md:p-4 min-h-[220px] h-[90%] overflow-auto"
+                    onDragEnter={(e) => {
+                      // Al entrar al contenedor sin tarea específica, permitir placeholder al final
+                      if (draggingTaskId) {
+                        setDragOverColumn(col.key);
+                        setDragOverTaskId(null);
+                        setDragInsertBefore(true);
+                      }
+                    }}
+                    className={`flex flex-col bg-slate-800/50 backdrop-blur border border-slate-700/60 rounded-2xl p-3 md:p-4 min-h-[220px] h-[90%] overflow-auto transition-colors ${
+                      draggingTaskId && dragOverColumn === col.key ? 'ring-2 ring-indigo-500/70' : ''
+                    }`}
                   >
                     <h4 className="text-center text-sm font-semibold uppercase tracking-wide mb-3 py-2 rounded-lg bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-indigo-500/20 text-indigo-200">
                       {col.title}
                     </h4>
                     <div className="flex-1 flex flex-col gap-3">
-                      {groupedTasks[col.key].length === 0 && (
-                        <div className="text-[11px] text-slate-500 italic text-center py-2">
-                          Sin tareas
-                        </div>
-                      )}
-                      {groupedTasks[col.key].map((task) => {
+                      {(() => {
+                        const columnTasks = groupedTasks[col.key];
+                        const elements = [];
+                        if (columnTasks.length === 0) {
+                          if (draggingTaskId && dragOverColumn === col.key) {
+                            // Placeholder único en columna vacía
+                            elements.push(
+                              <div
+                                key="placeholder-empty"
+                                className="h-10 rounded-xl border-2 border-dashed border-indigo-400 bg-indigo-500/10"
+                              />
+                            );
+                          } else {
+                            elements.push(
+                              <div
+                                key="empty"
+                                className="text-[11px] text-slate-500 italic text-center py-2"
+                              >
+                                Sin tareas
+                              </div>
+                            );
+                          }
+                        }
+                        columnTasks.forEach((task) => {
                         const priorityLower = (task.priority || "").toString().toLowerCase();
                         const borderClass = priorityLower.includes("alta")
                           ? "border-red-600"
@@ -655,20 +718,55 @@ function Dashboard() {
                           : priorityLower.includes("baja")
                           ? "bg-emerald-500"
                           : "bg-slate-400";
-                        return (
-                          <div
-                            key={task.id}
-                            draggable
-                            onDragStart={(e) => {
-                              if (task.id) e.dataTransfer.setData("text/task-id", task.id);
-                            }}
-                            className="bg-slate-200 text-slate-900 rounded-xl px-4 py-3 shadow group cursor-move relative flex flex-col group transition-all duration-300"
-                            style={{
-                              minHeight: 'auto',
-                              transition: 'padding-bottom 0.3s, min-height 0.3s',
-                              paddingBottom: undefined,
-                            }}
-                          >
+                          // Placeholder antes
+                          if (
+                            draggingTaskId &&
+                            dragOverColumn === col.key &&
+                            dragOverTaskId === task.id &&
+                            dragInsertBefore
+                          ) {
+                            elements.push(
+                              <div
+                                key={`placeholder-before-${task.id}`}
+                                className="h-6 rounded-md border-2 border-dashed border-indigo-400 bg-indigo-500/10"
+                              />
+                            );
+                          }
+                          elements.push(
+                            <div
+                              key={task.id}
+                              draggable
+                              onDragStart={(e) => {
+                                if (task.id) {
+                                  e.dataTransfer.setData("text/task-id", task.id);
+                                  setDraggingTaskId(task.id);
+                                }
+                              }}
+                              onDragEnd={() => {
+                                setDraggingTaskId(null);
+                                setDragOverColumn(null);
+                                setDragOverTaskId(null);
+                                setDragInsertBefore(true);
+                              }}
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                if (!draggingTaskId || draggingTaskId === task.id) return;
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                const offsetY = e.clientY - rect.top;
+                                const before = offsetY < rect.height / 2;
+                                setDragOverColumn(col.key);
+                                setDragOverTaskId(task.id);
+                                setDragInsertBefore(before);
+                              }}
+                              className={`bg-slate-200 text-slate-900 rounded-xl px-4 py-3 shadow group relative flex flex-col transition-all duration-300 cursor-grab outline outline-1 outline-transparent hover:outline-indigo-400 ${
+                                draggingTaskId === task.id ? 'outline-2 outline-purple-600 cursor-grabbing' : ''
+                              }`}
+                              style={{
+                                minHeight: 'auto',
+                                transition: 'padding-bottom 0.3s, min-height 0.3s',
+                                paddingBottom: undefined,
+                              }}
+                            >
                             <div className="flex items-start gap-3">
                               <span
                                 className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${borderClass}`}
@@ -726,9 +824,39 @@ function Dashboard() {
                                 </button>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                            </div>
+                          );
+                          // Placeholder después
+                          if (
+                            draggingTaskId &&
+                            dragOverColumn === col.key &&
+                            dragOverTaskId === task.id &&
+                            !dragInsertBefore
+                          ) {
+                            elements.push(
+                              <div
+                                key={`placeholder-after-${task.id}`}
+                                className="h-6 rounded-md border-2 border-dashed border-indigo-400 bg-indigo-500/10"
+                              />
+                            );
+                          }
+                        });
+                        // Placeholder al final si corresponde y no se determinó tarea destino
+                        if (
+                          draggingTaskId &&
+                          dragOverColumn === col.key &&
+                          dragOverTaskId === null &&
+                          columnTasks.length > 0
+                        ) {
+                          elements.push(
+                            <div
+                              key={`placeholder-end-${col.key}`}
+                              className="h-6 rounded-md border-2 border-dashed border-indigo-400 bg-indigo-500/10"
+                            />
+                          );
+                        }
+                        return elements;
+                      })()}
                     </div>
                   </div>
                 ))}

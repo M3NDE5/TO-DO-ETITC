@@ -127,8 +127,26 @@ function Dashboard() {
     setShowRightPanel(false);
   };
 
-  const deleteTask = (taskId) => {
-    eliminarTarea(taskId);
+  // Modal de confirmación para borrar tarea
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState(null);
+
+  const handleDeleteClick = (taskId) => {
+    setTaskToDelete(taskId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteTask = () => {
+    if (taskToDelete) {
+      eliminarTarea(taskToDelete);
+      setTaskToDelete(null);
+      setShowDeleteModal(false);
+    }
+  };
+
+  const cancelDeleteTask = () => {
+    setTaskToDelete(null);
+    setShowDeleteModal(false);
   };
 
   const goToPrevMonth = () => {
@@ -350,7 +368,7 @@ useEffect(() => {
                 </div>
 
                 <button
-                  onClick={() => deleteTask(task.id)}
+                  onClick={() => handleDeleteClick(task.id)}
                   className="w-7 h-7 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center shadow"
                 >
                   <span className="material-icons text-[16px]">close</span>
@@ -499,6 +517,27 @@ useEffect(() => {
         )}
         </div>
       </div>
+
+      {/* Modal de confirmación de borrado */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-2xl p-6 shadow-xl text-slate-900 w-full max-w-xs flex flex-col items-center">
+            <span className="material-icons text-red-500 text-4xl mb-2">warning</span>
+            <h3 className="text-lg font-semibold mb-2 text-center">¿Eliminar tarea?</h3>
+            <p className="text-sm text-center mb-4">Esta acción no se puede deshacer.</p>
+            <div className="flex gap-3 w-full">
+              <button
+                onClick={confirmDeleteTask}
+                className="flex-1 py-2 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition"
+              >Eliminar</button>
+              <button
+                onClick={cancelDeleteTask}
+                className="flex-1 py-2 rounded-xl bg-slate-300 text-slate-900 font-semibold hover:bg-slate-400 transition"
+              >Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Menú inferior para mobile */}
       {!isDesktop && (

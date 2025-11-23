@@ -46,6 +46,21 @@ function Dashboard() {
   const [tasks, setTasks] = useState(INITIAL_TASKS);
   // Eliminamos sessionId, usaremos userId
   const [showRightPanel, setShowRightPanel] = useState(false);
+
+  // Función para abrir/cerrar el panel y setear fecha/hora actual si se abre
+  const toggleRightPanel = () => {
+    if (!showRightPanel) {
+      const now = new Date();
+      const fecha = now.toISOString().slice(0, 10);
+      const hora = now.toTimeString().slice(0, 5);
+      setNewTask((prev) => ({
+        ...prev,
+        date: fecha,
+        time: hora,
+      }));
+    }
+    setShowRightPanel((prev) => !prev);
+  };
   const [newTask, setNewTask] = useState({
     name: "",
     date: "",
@@ -418,16 +433,6 @@ function Dashboard() {
               <h2 className="text-2xl md:text-4xl font-semibold tracking-wide truncate pr-4">
                 {displayedDate}
               </h2>
-              <button
-                type="button"
-                onClick={() => setShowRightPanel((prev) => !prev)}
-                className="w-10 h-10 rounded-full border border-slate-500 flex items-center justify-center"
-                aria-label="Abrir menú principal"
-              >
-                <span className="material-icons">
-                  {showRightPanel ? "close" : "menu"}
-                </span>
-              </button>
             </header>
 
             <section className="space-y-4 flex-1 overflow-auto">
@@ -455,7 +460,7 @@ function Dashboard() {
               {filteredTasks.map((task, index) => (
                 <div
                   key={task.id ?? index}
-                  className="bg-slate-100 text-slate-900 rounded-2xl px-6 py-4 flex items-center justify-between shadow-md"
+                  className="bg-slate-200 text-slate-900 rounded-2xl px-6 py-4 flex items-center justify-between shadow-md group"
                 >
                   <div className="flex items-center gap-4">
                     <span
@@ -485,7 +490,7 @@ function Dashboard() {
 
                   <button
                     onClick={() => handleDeleteClick(task.id)}
-                    className="w-7 h-7 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center shadow"
+                    className="w-7 h-7 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   >
                     <span className="material-icons text-[16px]">close</span>
                   </button>
@@ -495,9 +500,9 @@ function Dashboard() {
 
             <div className="flex justify-end mt-8">
               <button
-                onClick={() => setShowRightPanel(true)}
-                className="w-12 h-12 rounded-full bg-white text-slate-900 flex items-center justify-center text-3xl font-light shadow-lg border border-slate-300"
-                aria-label="Nueva tarea"
+                onClick={toggleRightPanel}
+                className={`w-12 h-12 rounded-full bg-white text-slate-900 flex items-center justify-center text-3xl font-light shadow-lg border border-slate-300 transition-transform ${showRightPanel ? "rotate-45" : ""}`}
+                aria-label={showRightPanel ? "Cerrar panel de tarea" : "Nueva tarea"}
               >
                 <span className="material-icons text-[26px]">add</span>
               </button>

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc } from "firebase/firestore";
-import { db } from "../firebase";
+import { crearTarea, suscribirTareas, eliminarTarea } from "../servicios/ServicioTareas";
 
 const WEEKDAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
@@ -52,20 +51,8 @@ function Dashboard() {
     return () => window.removeEventListener("resize", checkSize);
   }, []);
 
-  // Cargar tareas de Firestore filtradas por sesión
   useEffect(() => {
-    const q = query(
-      collection(db, "tareas"),
-      orderBy("createdAt", "desc")
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const loaded = snapshot.docs
-        .map((d) => ({ id: d.id, ...d.data() }))
-        .filter((task) => task.sessionId === sessionId);
-      setTasks(loaded);
-    });
-
+    const unsubscribe = suscribirTareas(sessionId, setTasks);
     return unsubscribe;
   }, [sessionId]);
 
@@ -116,7 +103,7 @@ function Dashboard() {
       createdAt: new Date(),
     };
 
-    addDoc(collection(db, "tareas"), taskToAdd);
+    crearTarea(taskToAdd);
     setNewTask({
       name: "",
       date: "",
@@ -129,7 +116,7 @@ function Dashboard() {
   };
 
   const deleteTask = (taskId) => {
-    deleteDoc(doc(db, "tareas", taskId));
+    eliminarTarea(taskId);
   };
 
   const goToPrevMonth = () => {

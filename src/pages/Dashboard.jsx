@@ -13,6 +13,7 @@ import { handleLogout } from "../context/AuthContext";
 import { getAuthSession } from "../context/AuthContext";
 import { db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
+import { GoClockFill } from "react-icons/go";
 
 const WEEKDAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
@@ -40,6 +41,64 @@ function isColHoliday(date) {
 }
 
 function Dashboard() {
+  // Pomodoro modal state
+  const [showPomodoro, setShowPomodoro] = useState(false);
+  const [pomodoroTask, setPomodoroTask] = useState(null);
+  const [pomodoroTime, setPomodoroTime] = useState(20 * 60); // 20 min in seconds
+  const [pomodoroPaused, setPomodoroPaused] = useState(false);
+
+  // Open Pomodoro modal
+  const openPomodoroModal = (task) => {
+    setPomodoroTask(task);
+    setPomodoroTime(20 * 60);
+    setPomodoroPaused(false);
+    setShowPomodoro(true);
+  };
+
+  // Confirmación para cerrar Pomodoro
+  const [showPomodoroCloseConfirm, setShowPomodoroCloseConfirm] =
+    useState(false);
+  const closePomodoroModal = () => {
+    setShowPomodoro(false);
+    setPomodoroTask(null);
+    setPomodoroPaused(false);
+    setPomodoroTime(20 * 60);
+    setShowPomodoroCloseConfirm(false);
+  };
+  const requestPomodoroClose = () => {
+    setShowPomodoroCloseConfirm(true);
+  };
+  const cancelPomodoroClose = () => {
+    setShowPomodoroCloseConfirm(false);
+  };
+
+  // Pomodoro timer effect
+  useEffect(() => {
+    if (!showPomodoro || pomodoroPaused || pomodoroTime <= 0) return;
+    const timer = setInterval(() => {
+      setPomodoroTime((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [showPomodoro, pomodoroPaused, pomodoroTime]);
+
+  // ESC key requests Pomodoro close (shows confirm)
+  useEffect(() => {
+    if (!showPomodoro) return;
+    const handleEsc = (e) => {
+      if (e.key === "Escape") requestPomodoroClose();
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [showPomodoro]);
+
+  // Format time mm:ss
+  const formatTime = (secs) => {
+    const m = Math.floor(secs / 60)
+      .toString()
+      .padStart(2, "0");
+    const s = (secs % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  };
   const today = new Date();
   const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
@@ -234,7 +293,11 @@ function Dashboard() {
           const customVal = ["alta", "media", "baja"].includes(prevP)
             ? ""
             : prev.priority || "";
-          return { ...prev, priority: "personalizada", customPriority: customVal || prev.customPriority || "" };
+          return {
+            ...prev,
+            priority: "personalizada",
+            customPriority: customVal || prev.customPriority || "",
+          };
         }
         return { ...prev, priority: value, customPriority: "" };
       }
@@ -244,13 +307,21 @@ function Dashboard() {
 
   const saveEditedTask = async () => {
     if (!editTask || !editTask.id) return;
-    const { id, name, date, time, priority, status, topic, customPriority } = editTask;
+    const { id, name, date, time, priority, status, topic, customPriority } =
+      editTask;
     const priorityToSave =
       priority === "personalizada" && customPriority && customPriority.trim()
         ? customPriority.trim()
         : priority;
     try {
-      await actualizarTarea(id, { name, date, time, priority: priorityToSave, status, topic });
+      await actualizarTarea(id, {
+        name,
+        date,
+        time,
+        priority: priorityToSave,
+        status,
+        topic,
+      });
       closeEditModal();
     } catch (err) {
       console.error("Error actualizando tarea:", err);
@@ -346,7 +417,10 @@ function Dashboard() {
           {/* Sidebar */}
           <aside className="lg:w-64 bg-slate-900/80 rounded-3xl p-5 md:p-6 flex flex-col justify-between shadow-2xl border border-slate-800">
             {/* Scrollable content */}
-            <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            <div
+              className="flex-1 min-h-0 overflow-y-auto scrollbar-hide"
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+            >
               <h1 className="text-xl font-extrabold tracking-wide mb-6">
                 TO DO ETITC
               </h1>
@@ -533,11 +607,20 @@ function Dashboard() {
                   <div className="flex items-center gap-4">
                     <span
                       className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                        task.priority && task.priority.toString().toLowerCase().includes("alta")
+                        task.priority &&
+                        task.priority.toString().toLowerCase().includes("alta")
                           ? "border-red-600"
-                          : task.priority && task.priority.toString().toLowerCase().includes("media")
+                          : task.priority &&
+                            task.priority
+                              .toString()
+                              .toLowerCase()
+                              .includes("media")
                           ? "border-orange-500"
-                          : task.priority && task.priority.toString().toLowerCase().includes("baja")
+                          : task.priority &&
+                            task.priority
+                              .toString()
+                              .toLowerCase()
+                              .includes("baja")
                           ? "border-emerald-600"
                           : "border-slate-400"
                       }`}
@@ -546,11 +629,23 @@ function Dashboard() {
                     >
                       <span
                         className={`${
-                          task.priority && task.priority.toString().toLowerCase().includes("alta")
+                          task.priority &&
+                          task.priority
+                            .toString()
+                            .toLowerCase()
+                            .includes("alta")
                             ? "bg-red-600"
-                            : task.priority && task.priority.toString().toLowerCase().includes("media")
+                            : task.priority &&
+                              task.priority
+                                .toString()
+                                .toLowerCase()
+                                .includes("media")
                             ? "bg-orange-400"
-                            : task.priority && task.priority.toString().toLowerCase().includes("baja")
+                            : task.priority &&
+                              task.priority
+                                .toString()
+                                .toLowerCase()
+                                .includes("baja")
                             ? "bg-emerald-500"
                             : "bg-slate-400"
                         } w-2.5 h-2.5 rounded-full`}
@@ -573,6 +668,92 @@ function Dashboard() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {/* Pomodoro Modal */}
+                    {showPomodoro && pomodoroTask && (
+                      <div
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+                        onClick={(e) => {
+                          if (e.target === e.currentTarget)
+                            requestPomodoroClose();
+                        }}
+                      >
+                        <div className="bg-slate-900 rounded-3xl shadow-2xl p-12 max-w-lg w-full flex flex-col items-center relative text-slate-100 border border-slate-800">
+                          <button
+                            className="absolute top-4 right-4 text-slate-400 hover:text-red-400 text-2xl"
+                            onClick={requestPomodoroClose}
+                            aria-label="Cerrar"
+                          >
+                            <span className="material-icons">close</span>
+                          </button>
+                          <h3 className="text-2xl font-bold mb-3 text-center">
+                            Pomodoro
+                          </h3>
+                          <p className="text-base font-semibold mb-6 text-center">
+                            {pomodoroTask.name}
+                          </p>
+                          <div className="text-6xl font-mono font-bold mb-6">
+                            {formatTime(pomodoroTime)}
+                          </div>
+                          <div className="flex gap-4 mb-4">
+                            <button
+                              onClick={() => setPomodoroPaused((p) => !p)}
+                              className={`py-3 px-6 rounded-xl font-semibold transition ${
+                                pomodoroPaused
+                                  ? "bg-green-600 text-white hover:bg-green-700"
+                                  : "bg-yellow-400 text-slate-900 hover:bg-yellow-500"
+                              }`}
+                            >
+                              {pomodoroPaused ? "Reanudar" : "Pausar"}
+                            </button>
+                            <button
+                              onClick={requestPomodoroClose}
+                              className="py-3 px-6 rounded-xl bg-slate-800 text-slate-100 font-semibold hover:bg-slate-700 border border-slate-700"
+                            >
+                              Cerrar
+                            </button>
+                          </div>
+                          {pomodoroTime === 0 && (
+                            <div className="mt-2 text-center text-green-400 font-semibold">
+                              ¡Pomodoro terminado!
+                            </div>
+                          )}
+                          <div className="mt-6 text-xs text-slate-500 text-center">
+                            Puedes cerrar el temporizador en cualquier momento.
+                          </div>
+                          {/* Modal de confirmación para cerrar Pomodoro */}
+                          {showPomodoroCloseConfirm && (
+                            <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60">
+                              <div className="bg-slate-900 rounded-2xl shadow-2xl p-6 max-w-xs w-full flex flex-col items-center border border-slate-800 text-slate-100">
+                                <span className="material-icons text-yellow-400 text-4xl mb-2">
+                                  warning
+                                </span>
+                                <h4 className="text-lg font-semibold mb-2 text-center">
+                                  ¿Cerrar temporizador?
+                                </h4>
+                                <p className="text-sm text-center mb-4">
+                                  ¿Seguro que quieres cerrar el temporizador
+                                  Pomodoro? El tiempo actual se perderá.
+                                </p>
+                                <div className="flex gap-3 w-full">
+                                  <button
+                                    onClick={closePomodoroModal}
+                                    className="flex-1 py-2 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition"
+                                  >
+                                    Cerrar
+                                  </button>
+                                  <button
+                                    onClick={cancelPomodoroClose}
+                                    className="flex-1 py-2 rounded-xl bg-slate-700 text-slate-100 font-semibold hover:bg-slate-600 transition"
+                                  >
+                                    Cancelar
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     <button
                       onClick={() => openEditModal(task)}
                       className="w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition-opacity duration-200"
@@ -598,8 +779,12 @@ function Dashboard() {
             <div className="flex justify-end mt-8">
               <button
                 onClick={toggleRightPanel}
-                className={`w-12 h-12 rounded-full bg-white text-slate-900 flex items-center justify-center text-3xl font-light shadow-lg border border-slate-300 transition-transform ${showRightPanel ? "rotate-45" : ""}`}
-                aria-label={showRightPanel ? "Cerrar panel de tarea" : "Nueva tarea"}
+                className={`w-12 h-12 rounded-full bg-white text-slate-900 flex items-center justify-center text-3xl font-light shadow-lg border border-slate-300 transition-transform ${
+                  showRightPanel ? "rotate-45" : ""
+                }`}
+                aria-label={
+                  showRightPanel ? "Cerrar panel de tarea" : "Nueva tarea"
+                }
               >
                 <span className="material-icons text-[26px]">add</span>
               </button>
@@ -772,113 +957,113 @@ function Dashboard() {
         </div>
       )}
 
-        {/* Modal de edición de tarea */}
-        {showEditModal && editTask && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-white rounded-2xl p-6 shadow-xl text-slate-900 w-full max-w-md">
-              <h3 className="text-lg font-semibold mb-3">Editar tarea</h3>
-              <div className="flex flex-col gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-medium">Nombre</label>
+      {/* Modal de edición de tarea */}
+      {showEditModal && editTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-2xl p-6 shadow-xl text-slate-900 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-3">Editar tarea</h3>
+            <div className="flex flex-col gap-3">
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Nombre</label>
+                <input
+                  name="name"
+                  value={editTask.name || ""}
+                  onChange={handleEditChange}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <div className="flex-1 space-y-1">
+                  <label className="text-xs font-medium">Fecha</label>
                   <input
-                    name="name"
-                    value={editTask.name || ""}
+                    name="date"
+                    type="date"
+                    value={editTask.date || ""}
                     onChange={handleEditChange}
                     className="w-full rounded-xl border border-slate-300 px-3 py-2"
                   />
                 </div>
-
-                <div className="flex gap-3">
-                  <div className="flex-1 space-y-1">
-                    <label className="text-xs font-medium">Fecha</label>
-                    <input
-                      name="date"
-                      type="date"
-                      value={editTask.date || ""}
-                      onChange={handleEditChange}
-                      className="w-full rounded-xl border border-slate-300 px-3 py-2"
-                    />
-                  </div>
-                  <div className="w-28 space-y-1">
-                    <label className="text-xs font-medium">Hora</label>
-                    <input
-                      name="time"
-                      type="time"
-                      value={editTask.time || ""}
-                      onChange={handleEditChange}
-                      className="w-full rounded-xl border border-slate-300 px-3 py-2"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-medium">Prioridad</label>
-                  <select
-                    name="priority"
-                    value={editPrioritySelectValue}
-                    onChange={handleEditChange}
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2"
-                  >
-                    <option value="alta">Alta</option>
-                    <option value="media">Media</option>
-                    <option value="baja">Baja</option>
-                    <option value="personalizada">Personalizada</option>
-                  </select>
-
-                  {editPrioritySelectValue === "personalizada" && (
-                    <input
-                      name="customPriority"
-                      value={editTask.customPriority || (editTask.priority || "")}
-                      onChange={handleEditChange}
-                      placeholder="Escribe la prioridad"
-                      className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2"
-                    />
-                  )}
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-medium">Estado</label>
-                  <select
-                    name="status"
-                    value={editTask.status || "pendiente"}
-                    onChange={handleEditChange}
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2"
-                  >
-                    <option value="pendiente">Pendiente</option>
-                    <option value="trabajando">Trabajándola</option>
-                    <option value="ejecutando">Ejecutando</option>
-                    <option value="finalizada">Finalizada</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-medium">Descripción</label>
+                <div className="w-28 space-y-1">
+                  <label className="text-xs font-medium">Hora</label>
                   <input
-                    name="topic"
-                    value={editTask.topic || ""}
+                    name="time"
+                    type="time"
+                    value={editTask.time || ""}
                     onChange={handleEditChange}
                     className="w-full rounded-xl border border-slate-300 px-3 py-2"
                   />
                 </div>
               </div>
 
-              <div className="flex gap-3 mt-4">
-                <button
-                  onClick={saveEditedTask}
-                  className="flex-1 py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700"
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Prioridad</label>
+                <select
+                  name="priority"
+                  value={editPrioritySelectValue}
+                  onChange={handleEditChange}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
                 >
-                  Guardar
-                </button>
-                <button
-                  onClick={closeEditModal}
-                  className="flex-1 py-2 rounded-xl bg-slate-200 text-slate-900 font-semibold hover:bg-slate-300"
+                  <option value="alta">Alta</option>
+                  <option value="media">Media</option>
+                  <option value="baja">Baja</option>
+                  <option value="personalizada">Personalizada</option>
+                </select>
+
+                {editPrioritySelectValue === "personalizada" && (
+                  <input
+                    name="customPriority"
+                    value={editTask.customPriority || editTask.priority || ""}
+                    onChange={handleEditChange}
+                    placeholder="Escribe la prioridad"
+                    className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2"
+                  />
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Estado</label>
+                <select
+                  name="status"
+                  value={editTask.status || "pendiente"}
+                  onChange={handleEditChange}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
                 >
-                  Cancelar
-                </button>
+                  <option value="pendiente">Pendiente</option>
+                  <option value="trabajando">Trabajándola</option>
+                  <option value="ejecutando">Ejecutando</option>
+                  <option value="finalizada">Finalizada</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Descripción</label>
+                <input
+                  name="topic"
+                  value={editTask.topic || ""}
+                  onChange={handleEditChange}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                />
               </div>
             </div>
+
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={saveEditedTask}
+                className="flex-1 py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700"
+              >
+                Guardar
+              </button>
+              <button
+                onClick={closeEditModal}
+                className="flex-1 py-2 rounded-xl bg-slate-200 text-slate-900 font-semibold hover:bg-slate-300"
+              >
+                Cancelar
+              </button>
+            </div>
           </div>
-        )}
+        </div>
+      )}
 
       {/* Menú inferior para mobile */}
       {!isDesktop && (

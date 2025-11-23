@@ -406,6 +406,23 @@ function Dashboard() {
     };
   }, [filteredTasks]);
 
+  // Detectar orientación móvil paisaje para mostrar Pomodoro full-screen estilo Pomofocus
+  const [isMobileLandscape, setIsMobileLandscape] = useState(false);
+  useEffect(() => {
+    const detect = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      setIsMobileLandscape(w < 900 && w > h); // ancho mayor que alto y menor a 900px
+    };
+    detect();
+    window.addEventListener("resize", detect);
+    window.addEventListener("orientationchange", detect);
+    return () => {
+      window.removeEventListener("resize", detect);
+      window.removeEventListener("orientationchange", detect);
+    };
+  }, []);
+
   // RETURN = TODO LO QUE TIENE QUE VER CON HTML
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col">
@@ -1025,46 +1042,82 @@ function Dashboard() {
           </button>
         </nav>
       )}
-      {/* Modal Pomodoro */}
+      {/* Modal / Full-screen Pomodoro */}
       {showPomodoro && pomodoroTask && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-md p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) requestPomodoroClose();
-          }}
-        >
-          <div className="bg-slate-900 w-full max-w-lg rounded-2xl border border-slate-700 shadow-2xl p-8 relative">
-            <PomodoroTimer
-              onClose={requestPomodoroClose}
-              autoStart={true}
-              task={pomodoroTask}
-            />
-            {/* Modal de confirmación para cerrar Pomodoro */}
-            {showPomodoroCloseConfirm && (
-              <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/40 backdrop-blur-md">
-                <div className="bg-slate-900 rounded-2xl shadow-2xl p-6 max-w-xs w-full flex flex-col items-center border border-slate-800 text-slate-100">
-                  <span className="material-icons text-yellow-400 text-4xl mb-2">warning</span>
-                  <h4 className="text-lg font-semibold mb-2 text-center">¿Cerrar temporizador?</h4>
-                  <p className="text-sm text-center mb-4">¿Seguro que quieres cerrar el temporizador Pomodoro? El tiempo actual se perderá.</p>
-                  <div className="flex gap-3 w-full">
-                    <button
-                      onClick={closePomodoroModal}
-                      className="flex-1 py-2 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition"
-                    >
-                      Cerrar
-                    </button>
-                    <button
-                      onClick={cancelPomodoroClose}
-                      className="flex-1 py-2 rounded-xl bg-slate-700 text-slate-100 font-semibold hover:bg-slate-600 transition"
-                    >
-                      Cancelar
-                    </button>
+        isMobileLandscape ? (
+          <div className="fixed inset-0 z-50 flex flex-col items-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-4">
+            <div className="w-full flex justify-between items-center mb-4 max-w-3xl">
+              <h2 className="text-xl font-bold tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">Focus Mode</h2>
+              <button
+                onClick={requestPomodoroClose}
+                className="px-3 py-1 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-sm font-semibold backdrop-blur transition"
+              >Cerrar</button>
+            </div>
+            <div className="flex-1 w-full flex flex-col items-center justify-start max-w-3xl gap-6">
+              <div className="w-full bg-slate-800/60 border border-slate-700/60 rounded-2xl px-4 py-6 shadow-xl backdrop-blur-lg">
+                <PomodoroTimer
+                  onClose={requestPomodoroClose}
+                  autoStart={true}
+                  task={pomodoroTask}
+                  fullScreen
+                />
+              </div>
+              {showPomodoroCloseConfirm && (
+                <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm">
+                  <div className="bg-slate-800/80 rounded-2xl shadow-2xl p-6 max-w-xs w-full flex flex-col items-center border border-indigo-700/40 text-slate-100">
+                    <span className="material-icons text-indigo-300 text-4xl mb-2">warning</span>
+                    <h4 className="text-lg font-semibold mb-2 text-center">¿Cerrar temporizador?</h4>
+                    <p className="text-sm text-center mb-4 text-slate-300">Se perderá el tiempo actual.</p>
+                    <div className="flex gap-3 w-full">
+                      <button
+                        onClick={closePomodoroModal}
+                        className="flex-1 py-2 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-500 transition"
+                      >Cerrar</button>
+                      <button
+                        onClick={cancelPomodoroClose}
+                        className="flex-1 py-2 rounded-xl bg-indigo-600/40 text-white font-semibold hover:bg-indigo-600/60 transition"
+                      >Cancelar</button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-md p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) requestPomodoroClose();
+            }}
+          >
+            <div className="bg-slate-900 w-full max-w-lg rounded-2xl border border-slate-700 shadow-2xl p-8 relative">
+              <PomodoroTimer
+                onClose={requestPomodoroClose}
+                autoStart={true}
+                task={pomodoroTask}
+              />
+              {showPomodoroCloseConfirm && (
+                <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/40 backdrop-blur-md">
+                  <div className="bg-slate-900 rounded-2xl shadow-2xl p-6 max-w-xs w-full flex flex-col items-center border border-slate-800 text-slate-100">
+                    <span className="material-icons text-yellow-400 text-4xl mb-2">warning</span>
+                    <h4 className="text-lg font-semibold mb-2 text-center">¿Cerrar temporizador?</h4>
+                    <p className="text-sm text-center mb-4">¿Seguro que quieres cerrar el temporizador Pomodoro? El tiempo actual se perderá.</p>
+                    <div className="flex gap-3 w-full">
+                      <button
+                        onClick={closePomodoroModal}
+                        className="flex-1 py-2 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition"
+                      >Cerrar</button>
+                      <button
+                        onClick={cancelPomodoroClose}
+                        className="flex-1 py-2 rounded-xl bg-slate-700 text-slate-100 font-semibold hover:bg-slate-600 transition"
+                      >Cancelar</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )
       )}
     </div>
   );

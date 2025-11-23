@@ -4,6 +4,8 @@ import { signOut } from "firebase/auth";
 import { auth } from "../firebase";
 import { useNavigate } from "react-router-dom";
 import { handleLogout } from "../context/AuthContext";
+import { getAuthSession } from '../context/AuthContext';
+
 
 const WEEKDAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
@@ -19,6 +21,12 @@ const CO_HOLIDAYS = [
 
 // Estado inicial solo para mostrar algo mientras carga Firestore
 const INITIAL_TASKS = [];
+
+
+// function MiComponente() {
+  
+// }
+
 
 function isColHoliday(date) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -146,7 +154,12 @@ function Dashboard() {
   };
 
 
-
+useEffect(() => {
+    getAuthSession().then(user => {
+      // manejar user
+      console.log('Usuario autenticado:', user);
+    });
+    }, []);
 
   // RETURN = TODO LO QUE TIENE QUE VER CON HTML
   return (

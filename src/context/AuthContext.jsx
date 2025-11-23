@@ -32,3 +32,13 @@ export const handleLogout = async () => {
 export function useAuth() {
   return useContext(AuthContext);
 }
+
+// Devuelve la sesión/autenticación actual desde cualquier lugar (no solo hooks)
+export function getAuthSession() {
+  return new Promise((resolve) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      unsubscribe();
+      resolve(currentUser);
+    });
+  });
+}

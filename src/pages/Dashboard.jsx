@@ -45,25 +45,21 @@ function Dashboard() {
   // Pomodoro modal state
   const [showPomodoro, setShowPomodoro] = useState(false);
   const [pomodoroTask, setPomodoroTask] = useState(null);
+  const [showPomodoroCloseConfirm, setShowPomodoroCloseConfirm] = useState(false);
   const [pomodoroTime, setPomodoroTime] = useState(20 * 60); // 20 min in seconds
   const [pomodoroPaused, setPomodoroPaused] = useState(false);
 
-  // Open Pomodoro modal
+  // Open Pomodoro modal (inicia automáticamente)
   const openPomodoroModal = (task) => {
     setPomodoroTask(task);
-    setPomodoroTime(20 * 60);
-    setPomodoroPaused(false);
     setShowPomodoro(true);
+    setShowPomodoroCloseConfirm(false);
   };
 
   // Confirmación para cerrar Pomodoro
-  const [showPomodoroCloseConfirm, setShowPomodoroCloseConfirm] =
-    useState(false);
   const closePomodoroModal = () => {
     setShowPomodoro(false);
     setPomodoroTask(null);
-    setPomodoroPaused(false);
-    setPomodoroTime(20 * 60);
     setShowPomodoroCloseConfirm(false);
   };
   const requestPomodoroClose = () => {
@@ -627,13 +623,12 @@ function Dashboard() {
                       const id = e.dataTransfer.getData("text/task-id");
                       if (!id) return;
                       const newStatus = col.key === "pendiente" ? "pendiente" : col.key === "ejecutando" ? "ejecutando" : "finalizada";
-                      // Optimistic UI update
                       setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status: newStatus } : t)));
                       actualizarTarea(id, { status: newStatus }).catch((err) => {
                         console.error("Error actualizando estado:", err);
                       });
                     }}
-                    className="flex flex-col bg-slate-800/50 backdrop-blur border border-slate-700/60 rounded-2xl p-3 md:p-4 min-h-[280px] h-full"
+                    className="flex flex-col bg-slate-800/50 backdrop-blur border border-slate-700/60 rounded-2xl p-3 md:p-4 min-h-[220px] h-[90%]"
                   >
                     <h4 className="text-center text-sm font-semibold uppercase tracking-wide mb-3 py-2 rounded-lg bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-indigo-500/20 text-indigo-200">
                       {col.title}
@@ -667,7 +662,12 @@ function Dashboard() {
                             onDragStart={(e) => {
                               if (task.id) e.dataTransfer.setData("text/task-id", task.id);
                             }}
-                            className="bg-slate-200 text-slate-900 rounded-xl px-4 py-3 flex items-start justify-between shadow group cursor-move"
+                            className="bg-slate-200 text-slate-900 rounded-xl px-4 py-3 shadow group cursor-move relative flex flex-col group transition-all duration-300"
+                            style={{
+                              minHeight: 'auto',
+                              transition: 'padding-bottom 0.3s, min-height 0.3s',
+                              paddingBottom: undefined,
+                            }}
                           >
                             <div className="flex items-start gap-3">
                               <span
@@ -693,39 +693,43 @@ function Dashboard() {
                                 )}
                               </div>
                             </div>
-                            <div className="flex items-center gap-1 ml-2">
-                              <button
-                                onClick={() => openEditModal(task)}
-                                className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition-opacity"
-                                aria-label="Editar"
+                            <div className="flex items-center justify-center">
+                              <div
+                                className="flex gap-3 transition-all duration-300 opacity-0 max-h-0 group-hover:opacity-100 group-hover:max-h-16 group-hover:mt-4 group-hover:mb-2"
+                                style={{
+                                  overflow: 'hidden',
+                                  transition: 'opacity 0.3s, max-height 0.3s, margin-top 0.3s, margin-bottom 0.3s',
+                                }}
                               >
-                                <span className="material-icons text-[14px]">edit</span>
-                              </button>
-                              <button
-                                onClick={() => handleDeleteClick(task.id)}
-                                className="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition-opacity"
-                                aria-label="Eliminar"
-                              >
-                                <span className="material-icons text-[14px]">close</span>
-                              </button>
+                                <button
+                                  onClick={() => openEditModal(task)}
+                                  className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow transition-opacity hover:opacity-100 opacity-80 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                  aria-label="Editar"
+                                >
+                                  <span className="material-icons text-[18px]">edit</span>
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteClick(task.id)}
+                                  className="w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center shadow transition-opacity hover:opacity-100 opacity-80 focus:outline-none focus:ring-2 focus:ring-red-400"
+                                  aria-label="Eliminar"
+                                >
+                                  <span className="material-icons text-[18px]">close</span>
+                                </button>
+                                <button
+                                  onClick={() => openPomodoroModal(task)}
+                                  className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center shadow transition-opacity hover:opacity-100 opacity-80 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                  aria-label="Pomodoro"
+                                  title="Iniciar Pomodoro"
+                                  style={{ boxShadow: '0 2px 8px rgba(80,0,120,0.15)' }}
+                                >
+                                  <span className="material-icons text-[18px]">timer</span>
+                                </button>
+                              </div>
                             </div>
                           </div>
                         );
                       })}
                     </div>
-                    {/* Botón Pomodoro debajo de columna Ejecutando */}
-                    {col.key === "ejecutando" && (
-                      <div className="mt-3">
-                        <button
-                          type="button"
-                          onClick={() => setShowPomodoro(true)}
-                          className="w-full text-xs py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold flex items-center justify-center gap-1"
-                        >
-                          <span className="material-icons text-[16px]">timer</span>
-                          Pomodoro
-                        </button>
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
@@ -883,27 +887,21 @@ function Dashboard() {
 
       {/* Modal de confirmación de borrado */}
       {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-2xl p-6 shadow-xl text-slate-900 w-full max-w-xs flex flex-col items-center">
-            <span className="material-icons text-red-500 text-4xl mb-2">
-              warning
-            </span>
-            <h3 className="text-lg font-semibold mb-2 text-center">
-              ¿Eliminar tarea?
-            </h3>
-            <p className="text-sm text-center mb-4">
-              Esta acción no se puede deshacer.
-            </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-md p-4">
+          <div className="bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl p-6 w-full max-w-xs flex flex-col items-center text-slate-100">
+            <span className="material-icons text-red-500 text-4xl mb-2">warning</span>
+            <h3 className="text-lg font-semibold mb-2 text-center">¿Eliminar tarea?</h3>
+            <p className="text-sm text-center mb-4 text-slate-300">Esta acción no se puede deshacer.</p>
             <div className="flex gap-3 w-full">
               <button
                 onClick={confirmDeleteTask}
-                className="flex-1 py-2 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition"
+                className="flex-1 py-2 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-500 transition focus:outline-none focus:ring-2 focus:ring-red-400"
               >
                 Eliminar
               </button>
               <button
                 onClick={cancelDeleteTask}
-                className="flex-1 py-2 rounded-xl bg-slate-300 text-slate-900 font-semibold hover:bg-slate-400 transition"
+                className="flex-1 py-2 rounded-xl bg-slate-700 text-slate-100 font-semibold hover:bg-slate-600 transition focus:outline-none focus:ring-2 focus:ring-slate-500"
               >
                 Cancelar
               </button>
@@ -914,75 +912,71 @@ function Dashboard() {
 
       {/* Modal de edición de tarea */}
       {showEditModal && editTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-2xl p-6 shadow-xl text-slate-900 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-3">Editar tarea</h3>
-            <div className="flex flex-col gap-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-md p-4">
+          <div className="bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl p-6 w-full max-w-md text-slate-100">
+            <h3 className="text-lg font-semibold mb-4">Editar tarea</h3>
+            <div className="flex flex-col gap-4">
               <div className="space-y-1">
                 <label className="text-xs font-medium">Nombre</label>
                 <input
                   name="name"
-                  value={editTask.name || ""}
+                  value={editTask.name || ''}
                   onChange={handleEditChange}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                  className="w-full rounded-xl bg-slate-800/50 border border-slate-600 px-3 py-2 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 />
               </div>
-
-              <div className="flex gap-3">
+              <div className="flex gap-4">
                 <div className="flex-1 space-y-1">
                   <label className="text-xs font-medium">Fecha</label>
                   <input
                     name="date"
                     type="date"
-                    value={editTask.date || ""}
+                    value={editTask.date || ''}
                     onChange={handleEditChange}
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                    className="w-full rounded-xl bg-slate-800/50 border border-slate-600 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400"
                   />
                 </div>
-                <div className="w-28 space-y-1">
+                <div className="w-32 space-y-1">
                   <label className="text-xs font-medium">Hora</label>
                   <input
                     name="time"
                     type="time"
-                    value={editTask.time || ""}
+                    value={editTask.time || ''}
                     onChange={handleEditChange}
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                    className="w-full rounded-xl bg-slate-800/50 border border-slate-600 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400"
                   />
                 </div>
               </div>
-
               <div className="space-y-1">
                 <label className="text-xs font-medium">Prioridad</label>
                 <select
                   name="priority"
                   value={editPrioritySelectValue}
                   onChange={handleEditChange}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                  className="w-full rounded-xl bg-slate-800/50 border border-slate-600 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 >
                   <option value="alta">Alta</option>
                   <option value="media">Media</option>
                   <option value="baja">Baja</option>
                   <option value="personalizada">Personalizada</option>
                 </select>
-
-                {editPrioritySelectValue === "personalizada" && (
+                {editPrioritySelectValue === 'personalizada' && (
                   <input
                     name="customPriority"
-                    value={editTask.customPriority || editTask.priority || ""}
+                    value={editTask.customPriority || editTask.priority || ''}
                     onChange={handleEditChange}
                     placeholder="Escribe la prioridad"
-                    className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2"
+                    className="w-full mt-1 rounded-xl bg-slate-800/50 border border-slate-600 px-3 py-2 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400"
                   />
                 )}
               </div>
-
               <div className="space-y-1">
                 <label className="text-xs font-medium">Estado</label>
                 <select
                   name="status"
-                  value={editTask.status || "pendiente"}
+                  value={editTask.status || 'pendiente'}
                   onChange={handleEditChange}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                  className="w-full rounded-xl bg-slate-800/50 border border-slate-600 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 >
                   <option value="pendiente">Pendiente</option>
                   <option value="trabajando">Trabajándola</option>
@@ -990,28 +984,26 @@ function Dashboard() {
                   <option value="finalizada">Finalizada</option>
                 </select>
               </div>
-
               <div className="space-y-1">
                 <label className="text-xs font-medium">Descripción</label>
                 <input
                   name="topic"
-                  value={editTask.topic || ""}
+                  value={editTask.topic || ''}
                   onChange={handleEditChange}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                  className="w-full rounded-xl bg-slate-800/50 border border-slate-600 px-3 py-2 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 />
               </div>
             </div>
-
-            <div className="flex gap-3 mt-4">
+            <div className="flex gap-3 mt-6">
               <button
                 onClick={saveEditedTask}
-                className="flex-1 py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700"
+                className="flex-1 py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-500 transition focus:outline-none focus:ring-2 focus:ring-indigo-400"
               >
                 Guardar
               </button>
               <button
                 onClick={closeEditModal}
-                className="flex-1 py-2 rounded-xl bg-slate-200 text-slate-900 font-semibold hover:bg-slate-300"
+                className="flex-1 py-2 rounded-xl bg-slate-700 text-slate-100 font-semibold hover:bg-slate-600 transition focus:outline-none focus:ring-2 focus:ring-slate-500"
               >
                 Cancelar
               </button>
@@ -1048,10 +1040,43 @@ function Dashboard() {
         </nav>
       )}
       {/* Modal Pomodoro */}
-      {showPomodoro && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-slate-900 w-full max-w-md rounded-2xl border border-slate-700 shadow-2xl p-6">
-            <PomodoroTimer onClose={() => setShowPomodoro(false)} />
+      {showPomodoro && pomodoroTask && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-md p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) requestPomodoroClose();
+          }}
+        >
+          <div className="bg-slate-900 w-full max-w-lg rounded-2xl border border-slate-700 shadow-2xl p-8 relative">
+            <PomodoroTimer
+              onClose={requestPomodoroClose}
+              autoStart={true}
+              task={pomodoroTask}
+            />
+            {/* Modal de confirmación para cerrar Pomodoro */}
+            {showPomodoroCloseConfirm && (
+              <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/40 backdrop-blur-md">
+                <div className="bg-slate-900 rounded-2xl shadow-2xl p-6 max-w-xs w-full flex flex-col items-center border border-slate-800 text-slate-100">
+                  <span className="material-icons text-yellow-400 text-4xl mb-2">warning</span>
+                  <h4 className="text-lg font-semibold mb-2 text-center">¿Cerrar temporizador?</h4>
+                  <p className="text-sm text-center mb-4">¿Seguro que quieres cerrar el temporizador Pomodoro? El tiempo actual se perderá.</p>
+                  <div className="flex gap-3 w-full">
+                    <button
+                      onClick={closePomodoroModal}
+                      className="flex-1 py-2 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition"
+                    >
+                      Cerrar
+                    </button>
+                    <button
+                      onClick={cancelPomodoroClose}
+                      className="flex-1 py-2 rounded-xl bg-slate-700 text-slate-100 font-semibold hover:bg-slate-600 transition"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

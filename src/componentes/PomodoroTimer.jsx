@@ -2,25 +2,32 @@ import { useEffect, useState, useRef } from "react";
 
 // Temporizador Pomodoro simple: 25 min trabajo / 5 min descanso.
 // Permite ajustar duraciones antes de iniciar y hacer pausas.
-export default function PomodoroTimer({ onClose }) {
+export default function PomodoroTimer({ onClose, autoStart = false, task }) {
   const [workMinutes, setWorkMinutes] = useState(25);
   const [breakMinutes, setBreakMinutes] = useState(5);
   const [secondsLeft, setSecondsLeft] = useState(workMinutes * 60);
   const [mode, setMode] = useState("work"); // 'work' | 'break'
-  const [running, setRunning] = useState(false);
+  const [running, setRunning] = useState(autoStart);
   const intervalRef = useRef(null);
 
-  // Actualiza segundos si se cambia la duración inicial y no está corriendo
+  // Actualiza el valor total solo cuando se cambia la duración manualmente (no al pausar)
   useEffect(() => {
-    if (!running && mode === "work") setSecondsLeft(workMinutes * 60);
-  }, [workMinutes, running, mode]);
+    if (mode === 'work' && !running) {
+      setSecondsLeft(workMinutes * 60);
+    }
+  }, [workMinutes, mode]);
   useEffect(() => {
-    if (!running && mode === "break") setSecondsLeft(breakMinutes * 60);
-  }, [breakMinutes, running, mode]);
+    if (mode === 'break' && !running) {
+      setSecondsLeft(breakMinutes * 60);
+    }
+  }, [breakMinutes, mode]);
 
   // Lógica principal del conteo
   useEffect(() => {
-    if (!running) return;
+    if (!running) {
+      clearInterval(intervalRef.current);
+      return;
+    }
     intervalRef.current = setInterval(() => {
       setSecondsLeft((prev) => prev - 1);
     }, 1000);
@@ -33,28 +40,48 @@ export default function PomodoroTimer({ onClose }) {
     if (mode === "work") {
       setMode("break");
       setSecondsLeft(breakMinutes * 60);
+      setRunning(true);
     } else {
       setMode("work");
       setSecondsLeft(workMinutes * 60);
+      setRunning(true);
     }
   }, [secondsLeft, mode, workMinutes, breakMinutes]);
 
-  const toggleRunning = () => setRunning((r) => !r);
+  // Iniciar automáticamente si autoStart
+  useEffect(() => {
+    if (autoStart) setRunning(true);
+  }, [autoStart]);
+
+  // ESC key requests close
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [onClose]);
+
+  const toggleRunning = () => {
+    setRunning((r) => !r);
+  };
   const resetCurrent = () => {
     clearInterval(intervalRef.current);
     setRunning(false);
     setSecondsLeft((mode === "work" ? workMinutes : breakMinutes) * 60);
   };
+  // Salta a la siguiente fase y asegura que el intervalo se reinicie
   const skipMode = () => {
+    const nextMode = mode === 'work' ? 'break' : 'work';
+    const nextSeconds = nextMode === 'work' ? workMinutes * 60 : breakMinutes * 60;
+    // Detenemos el intervalo actual si existe
     clearInterval(intervalRef.current);
+    // Actualizamos fase y tiempo
+    setMode(nextMode);
+    setSecondsLeft(nextSeconds);
+    // Forzamos recrear intervalo: toggling running garantiza que el useEffect se ejecute
     setRunning(false);
-    if (mode === "work") {
-      setMode("break");
-      setSecondsLeft(breakMinutes * 60);
-    } else {
-      setMode("work");
-      setSecondsLeft(workMinutes * 60);
-    }
+    setTimeout(() => setRunning(true), 0);
   };
 
   const mm = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
@@ -65,6 +92,9 @@ export default function PomodoroTimer({ onClose }) {
       <h3 className="text-lg font-semibold text-center">
         Temporizador Pomodoro ({mode === "work" ? "Trabajo" : "Descanso"})
       </h3>
+      {task && (
+        <div className="text-xs text-center text-slate-400 mb-2">Tarea: <span className="font-semibold text-slate-200">{task.name}</span></div>
+      )}
       <div className="text-center text-5xl font-bold tracking-widest">
         {mm}:{ss}
       </div>

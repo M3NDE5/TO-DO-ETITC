@@ -140,7 +140,7 @@ function Dashboard() {
     const tareasTexto = tasks
       .map((t) => `- ${t.name} (${t.date || "sin fecha"})`)
       .join("\n");
-    const prompt = `Estas son mis tareas actuales en mi aplicación de To Do:\n${tareasTexto}\n\nSugiere una tarea corta y concreta que podría agregar a mi lista, útil y relevante para mí. No incluyas ninguna fecha en la respuesta. Siempre responde como si sugirieras agregar una tarea, usando el formato: 'Te sugiero agregar: ...', en máximo 2 líneas.`;
+    const prompt = `Tareas:\n${tareasTexto}\n\nElige UNA acción: agregar | eliminar | actualizar. Responde SOLO así (en español):\nAcción: <agregar|eliminar|actualizar>\nTarea: <título corto>\nDetalles: <opcional>`;
     generateResponse(prompt)
       .then((msg) => setIaMessage(msg))
       .catch(() => setIaMessage("No se pudo obtener sugerencia de la IA."))
@@ -262,11 +262,115 @@ function Dashboard() {
 
   const extractSuggestion = (msg) => {
     if (!msg) return "";
-    // try to parse formats like "Te sugiero agregar: ..." or just raw suggestion
+    // Fallback short extractor: devuelve la parte después de ':' si existe
     const idx = msg.indexOf(":");
     if (idx !== -1) return msg.slice(idx + 1).trim().replace(/^"|"$/g, "");
     return msg.trim();
   };
+
+  const parseIaMessage = (msg) => {
+    if (!msg) return { action: "agregar", title: "", details: "" };
+    // Buscar líneas tipo 'Acción: ...' y 'Tarea: ...' y 'Detalles: ...'
+    const actionMatch = msg.match(/Acci[oó]n:\s*(agregar|eliminar|actualizar)/i);
+    const tareaMatch = msg.match(/Tarea:\s*([^\n]+)/i);
+    const detallesMatch = msg.match(/Detalles:\s*([\s\S]+)/i);
+    const action = actionMatch ? actionMatch[1].toLowerCase() : (() => {
+      const low = msg.toLowerCase();
+      if (low.includes('eliminar') || low.includes('borrar')) return 'eliminar';
+      if (low.includes('actualizar') || low.includes('modificar') || low.includes('cambiar')) return 'actualizar';
+      return 'agregar';
+    })();
+    const title = tareaMatch ? tareaMatch[1].trim() : extractSuggestion(msg);
+    const details = detallesMatch ? detallesMatch[1].trim() : "";
+    return { action, title, details };
+  };
+
+  const getIaButtonLabel = (action) => {
+    if (!action) return 'Acción';
+    if (action === 'agregar') return 'Agendar';
+    if (action === 'eliminar') return 'Eliminar';
+    if (action === 'actualizar') return 'Actualizar';
+    return 'Acción';
+  };
+
+  const handleIaPrimaryAction = () => {
+    const { action, title } = parseIaMessage(iaMessage || '');
+    if (action === 'agregar') {
+      const suggestion = title || extractSuggestion(iaMessage);
+      const todayIso = new Date().toISOString().slice(0, 10);
+      // Si tenemos usuario autenticado, crear directamente la tarea
+      if (user && user.uid) {
+        const taskToAdd = {
+          name: suggestion || 'Nueva tarea sugerida',
+          date: todayIso,
+          time: '',
+          priority: 'media',
+          status: 'pendiente',
+          topic: '',
+          createdAt: new Date(),
+        };
+        crearTarea(taskToAdd, user.uid);
+        console.log('Tarea creada desde sugerencia IA:', taskToAdd.name);
+        return;
+      }
+      // Si no hay sesión, abrir modal para completar datos
+      setNewTask((prev) => ({ ...prev, name: suggestion || prev.name, date: prev.date || todayIso }));
+      setShowIaScheduleModal(true);
+      return;
+    }
+    if (action === 'eliminar') {
+      const suggestion = title || extractSuggestion(iaMessage);
+      const match = tasks.find((t) => t.name && suggestion && t.name.toLowerCase().includes(suggestion.toLowerCase()));
+      if (match) {
+        // Si hay sesión y tarea encontrada, eliminar directamente
+        if (user && user.uid) {
+          eliminarTarea(match.id);
+          console.log('Tarea eliminada desde sugerencia IA:', match.name);
+          return;
+        }
+        // Si no hay sesión, mostrar confirmación
+        setTaskToDelete(match.id);
+        setShowDeleteModal(true);
+        return;
+      }
+      // Si no encontró coincidencia, sugerir crear la tarea (abrir modal)
+      const todayIso2 = new Date().toISOString().slice(0, 10);
+      setNewTask((prev) => ({ ...prev, name: suggestion || prev.name, date: prev.date || todayIso2 }));
+      setShowIaScheduleModal(true);
+      return;
+    }
+    if (action === 'actualizar') {
+      const suggestion = title || extractSuggestion(iaMessage);
+      const detalles = parseIaMessage(iaMessage).details || '';
+      const match = tasks.find((t) => t.name && suggestion && t.name.toLowerCase().includes(suggestion.toLowerCase()));
+      if (match) {
+        // Si se proporcionan detalles, intentar actualizar el nombre o topic
+        if (detalles && user && user.uid) {
+          const updatePayload = {};
+          // Intento simple: si detalles parecen ser un nuevo nombre corto, actualizar name
+          updatePayload.name = detalles;
+          actualizarTarea(match.id, updatePayload).then(() => {
+            console.log('Tarea actualizada desde sugerencia IA:', match.name, '->', detalles);
+          }).catch((err) => console.error('Error actualizando desde IA:', err));
+          return;
+        }
+        // Si no hay detalles o no hay sesión, abrir modal de edición para que el usuario confirme
+        openEditModal(match);
+        return;
+      }
+      // Si no encuentra, abrir modal para crear la sugerencia
+      const todayIso3 = new Date().toISOString().slice(0, 10);
+      setNewTask((prev) => ({ ...prev, name: suggestion || prev.name, date: prev.date || todayIso3 }));
+      setShowIaScheduleModal(true);
+      return;
+    }
+    // fallback
+    const todayIso = new Date().toISOString().slice(0, 10);
+    setNewTask((prev) => ({ ...prev, name: extractSuggestion(iaMessage) || prev.name, date: prev.date || todayIso }));
+    setShowIaScheduleModal(true);
+  };
+
+  const iaParsed = useMemo(() => parseIaMessage(iaMessage), [iaMessage]);
 
   const openIaScheduleModal = () => {
     const suggestion = extractSuggestion(iaMessage);
@@ -508,19 +612,17 @@ function Dashboard() {
                       Sugerencia de la IA
                     </span>
                     <span className="text-indigo-100 text-sm">{iaMessage}</span>
+                    <div className="mt-3 flex justify-center">
+                      <button
+                        onClick={handleIaPrimaryAction}
+                        className="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-500 transition"
+                        title={getIaButtonLabel(iaParsed.action)}
+                      >
+                        {getIaButtonLabel(iaParsed.action)}
+                      </button>
+                    </div>
                   </div>
                 ) : null}
-              {iaMessage && (
-                <div className="mt-3 flex justify-center">
-                  <button
-                    onClick={openIaScheduleModal}
-                    className="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-500 transition"
-                    title="Agendar sugerencia"
-                  >
-                    Agendar
-                  </button>
-                </div>
-              )}
               </section>
 
               <section aria-label="Calendario">

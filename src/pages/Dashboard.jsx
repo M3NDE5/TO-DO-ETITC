@@ -558,6 +558,28 @@ function Dashboard() {
     };
   }, [filteredTasks]);
 
+  // Drag & drop preview (inserción entre tareas)
+  const [draggingTaskId, setDraggingTaskId] = useState(null);
+  const [dragOverColumn, setDragOverColumn] = useState(null);
+  const [dragInsertIndex, setDragInsertIndex] = useState(null);
+  const columnTaskListRefs = useRef({});
+
+  const computeInsertIndex = (colKey, clientY) => {
+    const container = columnTaskListRefs.current[colKey];
+    if (!container) return null;
+    const taskNodes = Array.from(container.querySelectorAll('[data-task-id]'));
+    if (!taskNodes.length) return 0;
+    let idx = taskNodes.length; // por defecto al final
+    for (let i = 0; i < taskNodes.length; i++) {
+      const rect = taskNodes[i].getBoundingClientRect();
+      if (clientY < rect.top + rect.height / 2) {
+        idx = i;
+        break;
+      }
+    }
+    return idx;
+  };
+
   // Detectar orientación móvil paisaje para mostrar Pomodoro full-screen estilo Pomofocus
   const [isMobileLandscape, setIsMobileLandscape] = useState(false);
   useEffect(() => {
@@ -806,7 +828,13 @@ function Dashboard() {
                 ].map((col) => (
                   <div
                     key={col.key}
-                    onDragOver={(e) => e.preventDefault()}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (!draggingTaskId) return;
+                      setDragOverColumn(col.key);
+                      const idx = computeInsertIndex(col.key, e.clientY);
+                      setDragInsertIndex(idx);
+                    }}
                     onDrop={(e) => {
                       const id = e.dataTransfer.getData("text/task-id");
                       if (!id) return;
@@ -821,102 +849,147 @@ function Dashboard() {
                     <h4 className="text-center text-sm font-semibold uppercase tracking-wide mb-3 py-2 rounded-lg bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-indigo-500/20 text-indigo-200">
                       {col.title}
                     </h4>
-                    <div className="flex-1 flex flex-col gap-3">
+                    <div
+                      className="flex-1 flex flex-col gap-3"
+                      ref={el => { columnTaskListRefs.current[col.key] = el; }}
+                    >
                       {groupedTasks[col.key].length === 0 && (
                         <div className="text-[11px] text-slate-500 italic text-center py-2">
                           Sin tareas
                         </div>
                       )}
-                      {groupedTasks[col.key].map((task) => {
-                        const priorityLower = (task.priority || "").toString().toLowerCase();
-                        const borderClass = priorityLower.includes("alta")
-                          ? "border-red-600"
-                          : priorityLower.includes("media")
-                          ? "border-orange-500"
-                          : priorityLower.includes("baja")
-                          ? "border-emerald-600"
-                          : "border-slate-400";
-                        const dotClass = priorityLower.includes("alta")
-                          ? "bg-red-600"
-                          : priorityLower.includes("media")
-                          ? "bg-orange-400"
-                          : priorityLower.includes("baja")
-                          ? "bg-emerald-500"
-                          : "bg-slate-400";
-                        return (
-                          <div
-                            key={task.id}
-                            draggable
-                            onDragStart={(e) => {
-                              if (task.id) e.dataTransfer.setData("text/task-id", task.id);
-                            }}
-                            className="bg-slate-200 text-slate-900 rounded-xl px-4 py-3 shadow group cursor-move relative flex flex-col group transition-all duration-300"
-                            style={{
-                              minHeight: 'auto',
-                              transition: 'padding-bottom 0.3s, min-height 0.3s',
-                              paddingBottom: undefined,
-                            }}
-                          >
-                            <div className="flex items-start gap-3">
-                              <span
-                                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${borderClass}`}
-                                title={`Prioridad: ${task.priority || '-'}`}
-                                aria-hidden
-                              >
-                                <span className={`${dotClass} w-2.5 h-2.5 rounded-full`} />
-                              </span>
-                              <div className="flex flex-col">
-                                <span className="text-xs font-semibold leading-tight truncate max-w-[140px]">
-                                  {task.name}
-                                </span>
-                                {(task.date || task.time) && (
-                                  <span className="text-[10px] text-slate-600">
-                                    {task.date} {task.time && `• ${task.time}`}
-                                  </span>
-                                )}
-                                {task.topic && (
-                                  <span className="text-[10px] text-slate-500 truncate max-w-[160px]">
-                                    {task.topic}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-center">
+                      {(() => {
+                        const tasksInCol = groupedTasks[col.key];
+                        const elements = [];
+                        tasksInCol.forEach((task, idx) => {
+                          if (draggingTaskId && dragOverColumn === col.key && dragInsertIndex === idx) {
+                            elements.push(
                               <div
-                                className="flex gap-3 transition-all duration-300 opacity-0 max-h-0 group-hover:opacity-100 group-hover:max-h-16 group-hover:mt-4 group-hover:mb-2"
-                                style={{
-                                  overflow: 'hidden',
-                                  transition: 'opacity 0.3s, max-height 0.3s, margin-top 0.3s, margin-bottom 0.3s',
-                                }}
+                                key={`placeholder-${idx}`}
+                                className="h-10 rounded-xl border-2 border-dashed border-indigo-400 bg-indigo-400/10 flex items-center justify-center text-[10px] text-indigo-300 animate-pulse"
                               >
-                                <button
-                                  onClick={() => openEditModal(task)}
-                                  className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow transition-opacity hover:opacity-100 opacity-80 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                                  aria-label="Editar"
+                                Soltar aquí
+                              </div>
+                            );
+                          }
+                          const priorityLower = (task.priority || "").toString().toLowerCase();
+                          const borderClass = priorityLower.includes("alta")
+                            ? "border-red-600"
+                            : priorityLower.includes("media")
+                            ? "border-orange-500"
+                            : priorityLower.includes("baja")
+                            ? "border-emerald-600"
+                            : "border-slate-400";
+                          const dotClass = priorityLower.includes("alta")
+                            ? "bg-red-600"
+                            : priorityLower.includes("media")
+                            ? "bg-orange-400"
+                            : priorityLower.includes("baja")
+                            ? "bg-emerald-500"
+                            : "bg-slate-400";
+                          elements.push(
+                            <div
+                              key={task.id}
+                              role="listitem"
+                              draggable
+                              aria-grabbed="false"
+                              onDragStart={(e) => {
+                                if (task.id) e.dataTransfer.setData("text/task-id", task.id);
+                                e.currentTarget.setAttribute('aria-grabbed','true');
+                                setDraggingTaskId(task.id);
+                                setDragOverColumn(col.key);
+                              }}
+                              onDragEnd={(e)=>{
+                                e.currentTarget.setAttribute('aria-grabbed','false');
+                                setDraggingTaskId(null);
+                                setDragOverColumn(null);
+                                setDragInsertIndex(null);
+                              }}
+                              data-task-id={task.id}
+                              className="relative bg-slate-200 text-slate-900 rounded-xl px-4 py-3 shadow-sm group cursor-grab flex flex-col transition-all duration-200 border border-slate-300 hover:border-indigo-500 hover:shadow-lg hover:scale-[1.02] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                              style={{
+                                minHeight: 'auto',
+                                transition: 'padding-bottom 0.3s, min-height 0.3s',
+                                paddingBottom: undefined,
+                                outline: draggingTaskId === task.id ? '2px solid rgba(99,102,241,0.6)' : undefined,
+                                opacity: draggingTaskId === task.id ? 0.4 : 1,
+                              }}
+                            >
+                              <div className="absolute top-1.5 right-1.5 p-1 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-100/60 transition opacity-0 group-hover:opacity-100 group-focus:opacity-100 cursor-grab select-none" aria-hidden>
+                                <span className="material-icons text-[16px] leading-none">drag_indicator</span>
+                              </div>
+                              <div className="flex items-start gap-3">
+                                <span
+                                  className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${borderClass}`}
+                                  title={`Prioridad: ${task.priority || '-'}`}
+                                  aria-hidden
                                 >
-                                  <span className="material-icons text-[18px]">edit</span>
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteClick(task.id)}
-                                  className="w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center shadow transition-opacity hover:opacity-100 opacity-80 focus:outline-none focus:ring-2 focus:ring-red-400"
-                                  aria-label="Eliminar"
+                                  <span className={`${dotClass} w-2.5 h-2.5 rounded-full`} />
+                                </span>
+                                <div className="flex flex-col">
+                                  <span className="text-xs font-semibold leading-tight truncate max-w-[150px]">
+                                    {task.name}
+                                  </span>
+                                  {(task.date || task.time) && (
+                                    <span className="text-[10px] text-slate-600">
+                                      {task.date} {task.time && `• ${task.time}`}
+                                    </span>
+                                  )}
+                                  {task.topic && (
+                                    <span className="text-[10px] text-slate-500 truncate max-w-[160px]">
+                                      {task.topic}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-center">
+                                <div
+                                  className="flex gap-3 transition-all duration-300 opacity-0 max-h-0 group-hover:opacity-100 group-hover:max-h-16 group-hover:mt-4 group-hover:mb-2"
+                                  style={{
+                                    overflow: 'hidden',
+                                    transition: 'opacity 0.3s, max-height 0.3s, margin-top 0.3s, margin-bottom 0.3s',
+                                  }}
                                 >
-                                  <span className="material-icons text-[18px]">close</span>
-                                </button>
-                                <button
-                                  onClick={() => openPomodoroModal(task)}
-                                  className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center shadow transition-opacity hover:opacity-100 opacity-80 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                                  aria-label="Pomodoro"
-                                  title="Iniciar Pomodoro"
-                                  style={{ boxShadow: '0 2px 8px rgba(80,0,120,0.15)' }}
-                                >
-                                  <span className="material-icons text-[18px]">timer</span>
-                                </button>
+                                  <button
+                                    onClick={() => openEditModal(task)}
+                                    className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow transition-opacity hover:opacity-100 opacity-80 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                    aria-label="Editar"
+                                  >
+                                    <span className="material-icons text-[18px]">edit</span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteClick(task.id)}
+                                    className="w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center shadow transition-opacity hover:opacity-100 opacity-80 focus:outline-none focus:ring-2 focus:ring-red-400"
+                                    aria-label="Eliminar"
+                                  >
+                                    <span className="material-icons text-[18px]">close</span>
+                                  </button>
+                                  <button
+                                    onClick={() => openPomodoroModal(task)}
+                                    className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center shadow transition-opacity hover:opacity-100 opacity-80 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                    aria-label="Pomodoro"
+                                    title="Iniciar Pomodoro"
+                                    style={{ boxShadow: '0 2px 8px rgba(80,0,120,0.15)' }}
+                                  >
+                                    <span className="material-icons text-[18px]">timer</span>
+                                  </button>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        });
+                        if (draggingTaskId && dragOverColumn === col.key && dragInsertIndex === groupedTasks[col.key].length) {
+                          elements.push(
+                            <div
+                              key={`placeholder-end`}
+                              className="h-10 rounded-xl border-2 border-dashed border-indigo-400 bg-indigo-400/10 flex items-center justify-center text-[10px] text-indigo-300 animate-pulse"
+                            >
+                              Soltar aquí
+                            </div>
+                          );
+                        }
+                        return elements;
+                      })()}
                     </div>
                   </div>
                 ))}

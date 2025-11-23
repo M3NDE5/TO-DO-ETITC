@@ -7,12 +7,12 @@ export function crearTarea(datos) {
   return addDoc(collection(db, COLECCION), datos);
 }
 
-export function suscribirTareas(sessionId, callback) {
+export function suscribirTareas(userId, callback) {
   const q = query(collection(db, COLECCION), orderBy("createdAt", "desc"));
   return onSnapshot(q, (snapshot) => {
     const tareas = snapshot.docs
       .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((t) => t.sessionId === sessionId);
+      .filter((t) => t.userId === userId);
     callback(tareas);
   });
 }

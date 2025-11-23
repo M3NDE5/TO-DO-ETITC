@@ -628,7 +628,7 @@ function Dashboard() {
                         console.error("Error actualizando estado:", err);
                       });
                     }}
-                    className="flex flex-col bg-slate-800/50 backdrop-blur border border-slate-700/60 rounded-2xl p-3 md:p-4 min-h-[220px] h-[90%]"
+                    className="flex flex-col bg-slate-800/50 backdrop-blur border border-slate-700/60 rounded-2xl p-3 md:p-4 min-h-[220px] h-[90%] overflow-auto"
                   >
                     <h4 className="text-center text-sm font-semibold uppercase tracking-wide mb-3 py-2 rounded-lg bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-indigo-500/20 text-indigo-200">
                       {col.title}
@@ -735,7 +735,7 @@ function Dashboard() {
               </div>
             </section>
 
-            <div className="flex justify-end mt-8">
+            <div className="flex justify-end mt-8 fixed bottom-20 right-6 md:bottom-10 md:right-10 lg:static lg:mt-0 ">
               <button
                 onClick={toggleRightPanel}
                 className={`w-12 h-12 rounded-full bg-white text-slate-900 flex items-center justify-center text-3xl font-light shadow-lg border border-slate-300 transition-transform ${
@@ -749,138 +749,124 @@ function Dashboard() {
               </button>
             </div>
           </main>
-          {/* Panel derecho / formulario nueva tarea (se muestra en desktop y como slide en mobile) */}
+          {/* Modal para nueva tarea (reemplaza panel lateral) */}
           {showRightPanel && (
-            <aside className="w-full lg:w-80 bg-indigo-900/95 rounded-3xl p-5 md:p-6 shadow-2xl border border-indigo-800 flex flex-col gap-4 animate-fadeIn">
-              <h2 className="text-center text-lg md:text-xl font-semibold">
-                Crear Tarea
-              </h2>
-
-              <div className="flex flex-col gap-3 flex-1">
-                {/* Nombre */}
-                <div className="space-y-1">
-                  <label className="text-xs font-medium" htmlFor="task-name">
-                    Nombre
-                  </label>
-                  <input
-                    id="task-name"
-                    name="name"
-                    type="text"
-                    value={newTask.name}
-                    onChange={handleInputChange}
-                    placeholder="Escribe la tarea..."
-                    className="w-full rounded-xl bg-indigo-700/60 px-4 py-2 text-sm placeholder-indigo-200 border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                  />
-                </div>
-
-                {/* Fecha */}
-                <div className="space-y-1">
-                  <label className="text-xs font-medium" htmlFor="task-date">
-                    Fecha
-                  </label>
-                  <input
-                    id="task-date"
-                    name="date"
-                    type="date"
-                    value={newTask.date}
-                    onChange={handleInputChange}
-                    className="w-full rounded-xl bg-indigo-700/60 px-4 py-2 text-sm border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                  />
-                </div>
-
-                {/* Hora */}
-                <div className="space-y-1">
-                  <label className="text-xs font-medium" htmlFor="task-time">
-                    Hora
-                  </label>
-                  <input
-                    id="task-time"
-                    name="time"
-                    type="time"
-                    value={newTask.time}
-                    onChange={handleInputChange}
-                    className="w-full rounded-xl bg-indigo-700/60 px-4 py-2 text-sm border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                  />
-                </div>
-
-                {/* Prioridad */}
-                <div className="space-y-1">
-                  <label
-                    className="text-xs font-medium"
-                    htmlFor="task-priority"
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+              <div className="w-full max-w-md bg-indigo-900/95 rounded-3xl p-5 md:p-6 shadow-2xl border border-indigo-800 flex flex-col gap-4 animate-fadeIn">
+                <div className="flex items-start justify-between">
+                  <h2 className="text-center text-lg md:text-xl font-semibold flex-1">Crear Tarea</h2>
+                  <button
+                    onClick={toggleRightPanel}
+                    aria-label="Cerrar"
+                    className="w-8 h-8 rounded-full bg-indigo-700 hover:bg-indigo-600 text-white flex items-center justify-center shadow"
                   >
-                    Prioridad
-                  </label>
-                  <select
-                    id="task-priority"
-                    name="priority"
-                    value={newTask.priority}
-                    onChange={handleInputChange}
-                    className="w-full rounded-xl bg-indigo-700/60 px-4 py-2 text-sm border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                  >
-                    <option value="alta">Alta</option>
-                    <option value="media">Media</option>
-                    <option value="baja">Baja</option>
-                    <option value="personalizada">Personalizada</option>
-                  </select>
-
-                  {newTask.priority === "personalizada" && (
+                    <span className="material-icons text-[18px]">close</span>
+                  </button>
+                </div>
+                <div className="flex flex-col gap-3 flex-1">
+                  {/* Nombre */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium" htmlFor="task-name">Nombre</label>
                     <input
-                      name="customPriority"
+                      id="task-name"
+                      name="name"
                       type="text"
-                      value={newTask.customPriority}
+                      value={newTask.name}
                       onChange={handleInputChange}
-                      placeholder="Escribe la prioridad"
-                      className="w-full mt-1 rounded-xl bg-indigo-700/60 px-4 py-2 text-sm placeholder-indigo-200 border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                      placeholder="Escribe la tarea..."
+                      className="w-full rounded-xl bg-indigo-700/60 px-4 py-2 text-sm placeholder-indigo-200 border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
                     />
-                  )}
+                  </div>
+                  {/* Fecha */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium" htmlFor="task-date">Fecha</label>
+                    <input
+                      id="task-date"
+                      name="date"
+                      type="date"
+                      value={newTask.date}
+                      onChange={handleInputChange}
+                      className="w-full rounded-xl bg-indigo-700/60 px-4 py-2 text-sm border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    />
+                  </div>
+                  {/* Hora */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium" htmlFor="task-time">Hora</label>
+                    <input
+                      id="task-time"
+                      name="time"
+                      type="time"
+                      value={newTask.time}
+                      onChange={handleInputChange}
+                      className="w-full rounded-xl bg-indigo-700/60 px-4 py-2 text-sm border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    />
+                  </div>
+                  {/* Prioridad */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium" htmlFor="task-priority">Prioridad</label>
+                    <select
+                      id="task-priority"
+                      name="priority"
+                      value={newTask.priority}
+                      onChange={handleInputChange}
+                      className="w-full rounded-xl bg-indigo-700/60 px-4 py-2 text-sm border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    >
+                      <option value="alta">Alta</option>
+                      <option value="media">Media</option>
+                      <option value="baja">Baja</option>
+                      <option value="personalizada">Personalizada</option>
+                    </select>
+                    {newTask.priority === "personalizada" && (
+                      <input
+                        name="customPriority"
+                        type="text"
+                        value={newTask.customPriority}
+                        onChange={handleInputChange}
+                        placeholder="Escribe la prioridad"
+                        className="w-full mt-1 rounded-xl bg-indigo-700/60 px-4 py-2 text-sm placeholder-indigo-200 border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                      />
+                    )}
+                  </div>
+                  {/* Estado */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium" htmlFor="task-status">Estado</label>
+                    <select
+                      id="task-status"
+                      name="status"
+                      value={newTask.status}
+                      onChange={handleInputChange}
+                      className="w-full rounded-xl bg-indigo-700/60 px-4 py-2 text-sm border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    >
+                      <option value="pendiente">Pendiente</option>
+                      <option value="trabajando">Trabajándola</option>
+                      <option value="ejecutando">Ejecutando</option>
+                      <option value="finalizada">Finalizada</option>
+                    </select>
+                  </div>
+                  {/* Tema / descripción corta */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium" htmlFor="task-topic">Tema / descripción</label>
+                    <input
+                      id="task-topic"
+                      name="topic"
+                      type="text"
+                      value={newTask.topic || ""}
+                      onChange={handleInputChange}
+                      placeholder="Por ejemplo: Parcial de matemáticas"
+                      className="w-full rounded-xl bg-indigo-700/60 px-4 py-2 text-sm placeholder-indigo-200 border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    />
+                  </div>
                 </div>
-
-                {/* Estado */}
-                <div className="space-y-1">
-                  <label className="text-xs font-medium" htmlFor="task-status">
-                    Estado
-                  </label>
-                  <select
-                    id="task-status"
-                    name="status"
-                    value={newTask.status}
-                    onChange={handleInputChange}
-                    className="w-full rounded-xl bg-indigo-700/60 px-4 py-2 text-sm border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                  >
-                    <option value="pendiente">Pendiente</option>
-                    <option value="trabajando">Trabajándola</option>
-                    <option value="ejecutando">Ejecutando</option>
-                    <option value="finalizada">Finalizada</option>
-                  </select>
-                </div>
-
-                {/* Tema / descripción corta */}
-                <div className="space-y-1">
-                  <label className="text-xs font-medium" htmlFor="task-topic">
-                    Tema / descripción
-                  </label>
-                  <input
-                    id="task-topic"
-                    name="topic"
-                    type="text"
-                    value={newTask.topic || ""}
-                    onChange={handleInputChange}
-                    placeholder="Por ejemplo: Parcial de matemáticas"
-                    className="w-full rounded-xl bg-indigo-700/60 px-4 py-2 text-sm placeholder-indigo-200 border border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                  />
-                </div>
+                <button
+                  type="button"
+                  onClick={addTask}
+                  className="mt-2 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white py-3 flex items-center justify-center gap-2 text-sm font-medium shadow-lg transition"
+                >
+                  <span className="material-icons text-[18px]">save</span>
+                  <span>Guardar tarea</span>
+                </button>
               </div>
-
-              <button
-                type="button"
-                onClick={addTask}
-                className="mt-2 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white py-3 flex items-center justify-center gap-2 text-sm font-medium shadow-lg transition"
-              >
-                <span className="material-icons text-[18px]">save</span>
-                <span>Guardar tarea</span>
-              </button>
-            </aside>
+            </div>
           )}
         </div>
       </div>

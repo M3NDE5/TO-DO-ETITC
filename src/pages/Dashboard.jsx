@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import {
   crearTarea,
   suscribirTareas,
@@ -130,12 +130,12 @@ function Dashboard() {
   const [iaMessage, setIaMessage] = useState("");
   const [iaLoading, setIaLoading] = useState(false);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
-  // Genera el mensaje de la IA cuando cambian las tareas
+  // Ejecutar sugerencia IA sólo una vez al cargar (cuando haya al menos una tarea)
+  const iaHasRunRef = useRef(false);
   useEffect(() => {
-    if (!tasks || tasks.length === 0) {
-      setIaMessage("");
-      return;
-    }
+    if (iaHasRunRef.current) return; // ya se ejecutó
+    if (!tasks || tasks.length === 0) return; // esperar a que lleguen tareas iniciales
+    iaHasRunRef.current = true;
     setIaLoading(true);
     const tareasTexto = tasks
       .map((t) => `- ${t.name} (${t.date || "sin fecha"})`)

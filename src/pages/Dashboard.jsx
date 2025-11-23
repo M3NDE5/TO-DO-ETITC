@@ -642,22 +642,27 @@ function Dashboard() {
                     <span className="text-white text-sm">Pensando...</span>
                   </div>
                 ) : iaMessage ? (
-                  <div className="w-full flex flex-col items-center justify-center text-center bg-gradient-to-r from-slate-800 to-purple-900 rounded-xl shadow-lg p-4">
-                    <span className="material-icons text-indigo-300 text-2xl mb-1">
-                      auto_awesome
-                    </span>
-                    <span className="text-xs font-semibold uppercase tracking-wide text-indigo-200 mb-1">
-                      Sugerencia de la IA
-                    </span>
-                    <span className="text-indigo-100 text-sm">{iaMessage}</span>
-                    <div className="mt-3 flex justify-center">
-                      <button
-                        onClick={handleIaPrimaryAction}
-                        className="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-500 transition"
-                        title={getIaButtonLabel(iaParsed.action)}
-                      >
-                        {getIaButtonLabel(iaParsed.action)}
-                      </button>
+                  <div className="w-full relative group flex flex-col items-center justify-center text-left bg-gradient-to-r from-slate-800 to-purple-900 rounded-xl shadow-lg p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="material-icons text-indigo-300 text-2xl">
+                        auto_awesome
+                      </span>
+                      <span className="text-xs font-semibold uppercase tracking-wide text-indigo-200">
+                        Sugerencia de la IA
+                      </span>
+                    </div>
+                    <div className="w-full">
+                      <p className="text-indigo-100 text-sm">{iaMessage}</p>
+                      <div className="w-full flex justify-center mt-3">
+                        <button
+                          onClick={handleIaPrimaryAction}
+                          className="opacity-0 pointer-events-none transform transition duration-200 scale-95 group-hover:opacity-100 group-hover:scale-105 group-hover:pointer-events-auto px-2 py-1 rounded-md bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-500 shadow-sm"
+                          title={getIaButtonLabel(iaParsed.action)}
+                          aria-label={getIaButtonLabel(iaParsed.action)}
+                        >
+                          {getIaButtonLabel(iaParsed.action)}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ) : null}

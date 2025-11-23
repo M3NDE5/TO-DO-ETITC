@@ -3,6 +3,7 @@ import {
   crearTarea,
   suscribirTareas,
   eliminarTarea,
+  actualizarTarea,
 } from "../servicios/ServicioTareas";
 import { generateResponse } from "../servicios/Gemini";
 import { signOut } from "firebase/auth";
@@ -196,6 +197,10 @@ function Dashboard() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
 
+  // Modal de edición de tarea
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTask, setEditTask] = useState(null);
+
   const handleDeleteClick = (taskId) => {
     setTaskToDelete(taskId);
     setShowDeleteModal(true);
@@ -206,6 +211,32 @@ function Dashboard() {
       eliminarTarea(taskToDelete);
       setTaskToDelete(null);
       setShowDeleteModal(false);
+    }
+  };
+
+  const openEditModal = (task) => {
+    setEditTask({ ...task });
+    setShowEditModal(true);
+  };
+
+  const closeEditModal = () => {
+    setEditTask(null);
+    setShowEditModal(false);
+  };
+
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditTask((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const saveEditedTask = async () => {
+    if (!editTask || !editTask.id) return;
+    const { id, name, date, time, priority, status, topic } = editTask;
+    try {
+      await actualizarTarea(id, { name, date, time, priority, status, topic });
+      closeEditModal();
+    } catch (err) {
+      console.error('Error actualizando tarea:', err);
     }
   };
 

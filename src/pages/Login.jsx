@@ -3,8 +3,7 @@ import { FaRegUserCircle } from "react-icons/fa";
 import { CiLock } from "react-icons/ci";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebase";
-import { useNavigate } from "react-router-dom";
-import { getAuth } from "firebase/auth";
+import { useNavigate, Link } from "react-router-dom";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -35,65 +34,65 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#252840] px-4 py-8">
-      <form
-        onSubmit={handleLogin}
-        className="w-full max-w-md bg-[#36395A] rounded-3xl shadow-xl flex flex-col gap-8 px-10 py-12 md:px-14 md:py-16"
-      >
-        <h1 className="text-white text-2xl md:text-3xl font-semibold text-center">Inicia sesión</h1>
-
-        <div className="flex flex-col bg-[#545b88] rounded-2xl p-2 md:p-6 gap-4 shadow-md">
-          <label className="text-gray-200 text-xs md:text-sm font-semibold uppercase tracking-wide">
-            Usuario (Email)
-          </label>
-          <div className="flex items-center gap-3">
-            <FaRegUserCircle className="text-white text-2xl shrink-0" aria-hidden="true" />
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="diego@gmail.com"
-              className="flex-1 bg-transparent text-gray-100 placeholder-gray-300 text-sm md:text-base focus:outline-none"
-              required
-              autoComplete="email"
-              autoFocus
-            />
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#23253a] px-2 py-8">
+      <div className="w-full max-w-sm md:max-w-md bg-[#36395A] rounded-3xl shadow-2xl flex flex-col gap-8 px-6 py-8 md:px-10 md:py-12">
+        <h1 className="text-white text-xl md:text-2xl font-semibold text-center mb-2">Inicia sesión</h1>
+        <form onSubmit={handleLogin} className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <label className="text-gray-200 text-xs md:text-sm font-semibold uppercase tracking-wide mb-1" htmlFor="email">
+              Usuario (Email)
+            </label>
+            <div className="flex items-center gap-3 bg-[#545b88] rounded-xl shadow-md px-4 py-3">
+              <FaRegUserCircle className="text-white text-2xl shrink-0" aria-hidden="true" />
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="diego@gmail.com"
+                className="flex-1 bg-transparent text-gray-100 placeholder-gray-300 text-base focus:outline-none"
+                required
+                autoComplete="email"
+                autoFocus
+              />
+            </div>
           </div>
-        </div>
 
-        <div className="flex flex-col bg-[#545b88] rounded-2xl p-5 md:p-6 gap-4 shadow-md">
-          <label className="text-gray-300 text-xs md:text-sm font-semibold uppercase tracking-wide">
-            Contraseña
-          </label>
-          <div className="flex items-center gap-3">
-            <CiLock className="text-gray-200 text-2xl shrink-0" aria-hidden="true" />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="•••••••"
-              className="flex-1 bg-transparent text-gray-100 placeholder-gray-400 text-sm md:text-base focus:outline-none"
-              required
-              autoComplete="current-password"
-            />
+          <div className="flex flex-col gap-2">
+            <label className="text-gray-300 text-xs md:text-sm font-semibold uppercase tracking-wide mb-1" htmlFor="password">
+              Contraseña
+            </label>
+            <div className="flex items-center gap-3 bg-[#545b88] rounded-xl shadow-md px-4 py-3">
+              <CiLock className="text-gray-200 text-2xl shrink-0" aria-hidden="true" />
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="•••••••"
+                className="flex-1 bg-transparent text-gray-100 placeholder-gray-400 text-base focus:outline-none"
+                required
+                autoComplete="current-password"
+              />
+            </div>
           </div>
+
+          {error && (
+            <p className="text-red-400 text-sm text-center -mt-2">{error}</p>
+          )}
+
+          <button
+            type="submit"
+            className="w-full bg-gradient-to-r from-indigo-400 via-indigo-500 to-indigo-600 hover:from-indigo-500 hover:to-indigo-700 text-white font-bold tracking-wide px-6 py-3 rounded-xl shadow-lg transition active:scale-[.97] text-base"
+          >
+            Iniciar sesión
+          </button>
+        </form>
+        <div className="text-center mt-2">
+          <span className="text-gray-300 text-sm">¿No tienes una cuenta? </span>
+          <Link to="/register" className="text-indigo-400 font-semibold hover:underline transition">Regístrate</Link>
         </div>
-
-        {error && (
-          <p className="text-red-400 text-sm text-center -mt-2">{error}</p>
-        )}
-
-        <button
-          type="submit"
-          className="w-full bg-[#b0b0b0] hover:bg-white text-black font-medium tracking-wide px-6 py-3 rounded-xl shadow-lg transition active:scale-[.97] text-sm md:text-base"
-        >
-          Iniciar sesión
-        </button>
-
-        <div className="text-center text-[11px] text-gray-400 mt-2">
-          <p>¿Olvidaste tu contraseña? Recupera el acceso pronto.</p>
-        </div>
-      </form>
+      </div>
     </div>
   );
 }

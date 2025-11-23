@@ -410,9 +410,6 @@ function Dashboard() {
     };
   }, [filteredTasks]);
 
-  // Estado para abrir/cerrar modal Pomodoro
-  const [showPomodoro, setShowPomodoro] = useState(false);
-
   // RETURN = TODO LO QUE TIENE QUE VER CON HTML
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col">

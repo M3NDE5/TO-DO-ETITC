@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { crearTarea, suscribirTareas, eliminarTarea } from "../servicios/ServicioTareas";
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase";
+import { useNavigate } from "react-router-dom";
+import { handleLogout } from "../context/AuthContext";
 
 const WEEKDAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
@@ -24,6 +28,8 @@ function isColHoliday(date) {
 
 function Dashboard() {
   const today = new Date();
+  const navigate = useNavigate();
+  const [showMenu, setShowMenu] = useState(false);
 
   const [tasks, setTasks] = useState(INITIAL_TASKS);
   const [sessionId] = useState(() => crypto.randomUUID());
@@ -140,6 +146,8 @@ function Dashboard() {
   };
 
 
+
+
   // RETURN = TODO LO QUE TIENE QUE VER CON HTML
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col">
@@ -230,17 +238,27 @@ function Dashboard() {
             </section>
           </div>
 
-          <div className="flex items-center justify-between mt-6 text-xs text-slate-200">
-            <div className="flex items-center gap-3">
+          <div
+          className="relative flex items-center justify-between mt-6 text-xs text-slate-200 hover:bg-[#090d18] p-3 rounded-xl cursor-pointer"
+              onClick={() => setShowMenu((prev) => !prev)}
+          >
+            <div className="flex items-center gap-3 ">
               <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center" />
               <div>
                 <p className="font-semibold leading-tight">Diego Rodriguez</p>
                 <p className="text-[10px] text-slate-400">Estudiante</p>
               </div>
             </div>
-            <button className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-sm">
-              <span className="material-icons text-[16px]">settings</span>
-            </button>
+            {showMenu && (
+              <div className="absolute right-0 top-12 z-10 bg-slate-900 border border-slate-700 rounded-xl shadow-lg py-2 px-4 min-w-[140px] flex flex-col">
+                <button
+                  className="text-left text-sm text-red-400 hover:text-red-600 py-1 px-2 rounded transition font-semibold"
+                  onClick={handleLogout}
+                >
+                  Cerrar sesión
+                </button>
+              </div>
+            )}
           </div>
         </aside>
 

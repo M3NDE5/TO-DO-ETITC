@@ -14,6 +14,7 @@ import { getAuthSession } from "../context/AuthContext";
 import { db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { GoClockFill } from "react-icons/go";
+import PomodoroTimer from "../componentes/PomodoroTimer";
 
 const WEEKDAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
@@ -396,6 +397,22 @@ function Dashboard() {
     return ["alta", "media", "baja"].includes(p) ? p : "personalizada";
   }, [editTask]);
 
+  // Agrupación de tareas por estado principal para el tablero (pendiente, ejecutando, finalizada)
+  const groupedTasks = useMemo(() => {
+    const source = filteredTasks;
+    return {
+      pendiente: source.filter((t) => (t.status || "").toLowerCase() === "pendiente"),
+      ejecutando: source.filter((t) => {
+        const s = (t.status || "").toLowerCase();
+        return s === "ejecutando" || s === "trabajando"; // unificamos estados de trabajo
+      }),
+      finalizada: source.filter((t) => (t.status || "").toLowerCase() === "finalizada"),
+    };
+  }, [filteredTasks]);
+
+  // Estado para abrir/cerrar modal Pomodoro
+  const [showPomodoro, setShowPomodoro] = useState(false);
+
   // RETURN = TODO LO QUE TIENE QUE VER CON HTML
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col">
@@ -577,8 +594,8 @@ function Dashboard() {
               </h2>
             </header>
 
-            <section className="space-y-4 flex-1 overflow-auto no-scrollbar-local">
-              <div className="flex items-center justify-between mb-2">
+            <section className="flex-1 overflow-auto no-scrollbar-local">
+              <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold">
                   {selectedDate
                     ? new Date(selectedDate).toLocaleDateString("es-ES", {
@@ -587,7 +604,7 @@ function Dashboard() {
                         month: "long",
                         year: "numeric",
                       })
-                    : "Todas las tareas"}
+                    : "Tablero de tareas"}
                 </h3>
                 {selectedDate && (
                   <button
@@ -599,181 +616,122 @@ function Dashboard() {
                 )}
               </div>
 
-              {filteredTasks.map((task, index) => (
-                <div
-                  key={task.id ?? index}
-                  className="bg-slate-200 text-slate-900 rounded-2xl px-6 py-4 flex items-center justify-between shadow-md group"
-                >
-                  <div className="flex items-center gap-4">
-                    <span
-                      className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                        task.priority &&
-                        task.priority.toString().toLowerCase().includes("alta")
+              {/* Tablero estilo Scrum */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 h-full min-h-[60vh]">
+                {[
+                  { key: "pendiente", title: "Pendiente" },
+                  { key: "ejecutando", title: "Ejecutando" },
+                  { key: "finalizada", title: "Completadas" },
+                ].map((col) => (
+                  <div
+                    key={col.key}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      const id = e.dataTransfer.getData("text/task-id");
+                      if (!id) return;
+                      const newStatus = col.key === "pendiente" ? "pendiente" : col.key === "ejecutando" ? "ejecutando" : "finalizada";
+                      // Optimistic UI update
+                      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status: newStatus } : t)));
+                      actualizarTarea(id, { status: newStatus }).catch((err) => {
+                        console.error("Error actualizando estado:", err);
+                      });
+                    }}
+                    className="flex flex-col bg-slate-800/50 backdrop-blur border border-slate-700/60 rounded-2xl p-3 md:p-4 min-h-[280px] h-full"
+                  >
+                    <h4 className="text-center text-sm font-semibold uppercase tracking-wide mb-3 py-2 rounded-lg bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-indigo-500/20 text-indigo-200">
+                      {col.title}
+                    </h4>
+                    <div className="flex-1 flex flex-col gap-3">
+                      {groupedTasks[col.key].length === 0 && (
+                        <div className="text-[11px] text-slate-500 italic text-center py-2">
+                          Sin tareas
+                        </div>
+                      )}
+                      {groupedTasks[col.key].map((task) => {
+                        const priorityLower = (task.priority || "").toString().toLowerCase();
+                        const borderClass = priorityLower.includes("alta")
                           ? "border-red-600"
-                          : task.priority &&
-                            task.priority
-                              .toString()
-                              .toLowerCase()
-                              .includes("media")
+                          : priorityLower.includes("media")
                           ? "border-orange-500"
-                          : task.priority &&
-                            task.priority
-                              .toString()
-                              .toLowerCase()
-                              .includes("baja")
+                          : priorityLower.includes("baja")
                           ? "border-emerald-600"
-                          : "border-slate-400"
-                      }`}
-                      title={`Prioridad: ${task.priority || "-"}`}
-                      aria-hidden
-                    >
-                      <span
-                        className={`${
-                          task.priority &&
-                          task.priority
-                            .toString()
-                            .toLowerCase()
-                            .includes("alta")
-                            ? "bg-red-600"
-                            : task.priority &&
-                              task.priority
-                                .toString()
-                                .toLowerCase()
-                                .includes("media")
-                            ? "bg-orange-400"
-                            : task.priority &&
-                              task.priority
-                                .toString()
-                                .toLowerCase()
-                                .includes("baja")
-                            ? "bg-emerald-500"
-                            : "bg-slate-400"
-                        } w-2.5 h-2.5 rounded-full`}
-                      />
-                    </span>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium">{task.name}</span>
-                      <span className="text-[11px] text-slate-500">
-                        {task.date && task.time
-                          ? `${task.date} • ${task.time}`
-                          : null}
-                      </span>
-                      <span className="text-[11px] text-slate-500 capitalize">
-                        Prioridad: {task.priority} • Estado: {task.status}
-                      </span>
-                      <span className="text-[11px] text-slate-500 capitalize">
-                        Descripcion: {task.topic}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {/* Pomodoro Modal */}
-                    {showPomodoro && pomodoroTask && (
-                      <div
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-                        onClick={(e) => {
-                          if (e.target === e.currentTarget)
-                            requestPomodoroClose();
-                        }}
-                      >
-                        <div className="bg-slate-900 rounded-3xl shadow-2xl p-12 max-w-lg w-full flex flex-col items-center relative text-slate-100 border border-slate-800">
-                          <button
-                            className="absolute top-4 right-4 text-slate-400 hover:text-red-400 text-2xl"
-                            onClick={requestPomodoroClose}
-                            aria-label="Cerrar"
+                          : "border-slate-400";
+                        const dotClass = priorityLower.includes("alta")
+                          ? "bg-red-600"
+                          : priorityLower.includes("media")
+                          ? "bg-orange-400"
+                          : priorityLower.includes("baja")
+                          ? "bg-emerald-500"
+                          : "bg-slate-400";
+                        return (
+                          <div
+                            key={task.id}
+                            draggable
+                            onDragStart={(e) => {
+                              if (task.id) e.dataTransfer.setData("text/task-id", task.id);
+                            }}
+                            className="bg-slate-200 text-slate-900 rounded-xl px-4 py-3 flex items-start justify-between shadow group cursor-move"
                           >
-                            <span className="material-icons">close</span>
-                          </button>
-                          <h3 className="text-2xl font-bold mb-3 text-center">
-                            Pomodoro
-                          </h3>
-                          <p className="text-base font-semibold mb-6 text-center">
-                            {pomodoroTask.name}
-                          </p>
-                          <div className="text-6xl font-mono font-bold mb-6">
-                            {formatTime(pomodoroTime)}
-                          </div>
-                          <div className="flex gap-4 mb-4">
-                            <button
-                              onClick={() => setPomodoroPaused((p) => !p)}
-                              className={`py-3 px-6 rounded-xl font-semibold transition ${
-                                pomodoroPaused
-                                  ? "bg-green-600 text-white hover:bg-green-700"
-                                  : "bg-yellow-400 text-slate-900 hover:bg-yellow-500"
-                              }`}
-                            >
-                              {pomodoroPaused ? "Reanudar" : "Pausar"}
-                            </button>
-                            <button
-                              onClick={requestPomodoroClose}
-                              className="py-3 px-6 rounded-xl bg-slate-800 text-slate-100 font-semibold hover:bg-slate-700 border border-slate-700"
-                            >
-                              Cerrar
-                            </button>
-                          </div>
-                          {pomodoroTime === 0 && (
-                            <div className="mt-2 text-center text-green-400 font-semibold">
-                              ¡Pomodoro terminado!
-                            </div>
-                          )}
-                          <div className="mt-6 text-xs text-slate-500 text-center">
-                            Puedes cerrar el temporizador en cualquier momento.
-                          </div>
-                          {/* Modal de confirmación para cerrar Pomodoro */}
-                          {showPomodoroCloseConfirm && (
-                            <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60">
-                              <div className="bg-slate-900 rounded-2xl shadow-2xl p-6 max-w-xs w-full flex flex-col items-center border border-slate-800 text-slate-100">
-                                <span className="material-icons text-yellow-400 text-4xl mb-2">
-                                  warning
+                            <div className="flex items-start gap-3">
+                              <span
+                                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${borderClass}`}
+                                title={`Prioridad: ${task.priority || '-'}`}
+                                aria-hidden
+                              >
+                                <span className={`${dotClass} w-2.5 h-2.5 rounded-full`} />
+                              </span>
+                              <div className="flex flex-col">
+                                <span className="text-xs font-semibold leading-tight truncate max-w-[140px]">
+                                  {task.name}
                                 </span>
-                                <h4 className="text-lg font-semibold mb-2 text-center">
-                                  ¿Cerrar temporizador?
-                                </h4>
-                                <p className="text-sm text-center mb-4">
-                                  ¿Seguro que quieres cerrar el temporizador
-                                  Pomodoro? El tiempo actual se perderá.
-                                </p>
-                                <div className="flex gap-3 w-full">
-                                  <button
-                                    onClick={closePomodoroModal}
-                                    className="flex-1 py-2 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition"
-                                  >
-                                    Cerrar
-                                  </button>
-                                  <button
-                                    onClick={cancelPomodoroClose}
-                                    className="flex-1 py-2 rounded-xl bg-slate-700 text-slate-100 font-semibold hover:bg-slate-600 transition"
-                                  >
-                                    Cancelar
-                                  </button>
-                                </div>
+                                {(task.date || task.time) && (
+                                  <span className="text-[10px] text-slate-600">
+                                    {task.date} {task.time && `• ${task.time}`}
+                                  </span>
+                                )}
+                                {task.topic && (
+                                  <span className="text-[10px] text-slate-500 truncate max-w-[160px]">
+                                    {task.topic}
+                                  </span>
+                                )}
                               </div>
                             </div>
-                          )}
-                        </div>
+                            <div className="flex items-center gap-1 ml-2">
+                              <button
+                                onClick={() => openEditModal(task)}
+                                className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition-opacity"
+                                aria-label="Editar"
+                              >
+                                <span className="material-icons text-[14px]">edit</span>
+                              </button>
+                              <button
+                                onClick={() => handleDeleteClick(task.id)}
+                                className="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition-opacity"
+                                aria-label="Eliminar"
+                              >
+                                <span className="material-icons text-[14px]">close</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {/* Botón Pomodoro debajo de columna Ejecutando */}
+                    {col.key === "ejecutando" && (
+                      <div className="mt-3">
+                        <button
+                          type="button"
+                          onClick={() => setShowPomodoro(true)}
+                          className="w-full text-xs py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold flex items-center justify-center gap-1"
+                        >
+                          <span className="material-icons text-[16px]">timer</span>
+                          Pomodoro
+                        </button>
                       </div>
                     )}
-                    <button
-                      onClick={() => openEditModal(task)}
-                      className="w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                      aria-label="Editar tarea"
-                      title="Editar"
-                    >
-                      <span className="material-icons text-[16px]">edit</span>
-                    </button>
-
-                    <button
-                      onClick={() => handleDeleteClick(task.id)}
-                      className="w-7 h-7 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                      aria-label="Eliminar tarea"
-                      title="Eliminar"
-                    >
-                      <span className="material-icons text-[16px]">close</span>
-                    </button>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </section>
 
             <div className="flex justify-end mt-8">
@@ -1091,6 +1049,14 @@ function Dashboard() {
             <span>Opciones</span>
           </button>
         </nav>
+      )}
+      {/* Modal Pomodoro */}
+      {showPomodoro && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-slate-900 w-full max-w-md rounded-2xl border border-slate-700 shadow-2xl p-6">
+            <PomodoroTimer onClose={() => setShowPomodoro(false)} />
+          </div>
+        </div>
       )}
     </div>
   );

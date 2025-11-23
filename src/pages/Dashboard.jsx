@@ -279,7 +279,8 @@ function Dashboard() {
         <div className="w-full max-w-6xl flex flex-col lg:flex-row gap-4 md:gap-6 h-full lg:h-[92vh]">
           {/* Sidebar */}
           <aside className="lg:w-64 bg-slate-900/80 rounded-3xl p-5 md:p-6 flex flex-col justify-between shadow-2xl border border-slate-800">
-            <div>
+            {/* Scrollable content */}
+            <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               <h1 className="text-xl font-extrabold tracking-wide mb-6">
                 TO DO ETITC
               </h1>
@@ -393,8 +394,9 @@ function Dashboard() {
               </section>
             </div>
 
+            {/* Fixed user info section */}
             <div
-              className="relative flex items-center justify-between mt-6 text-xs text-slate-200 hover:bg-[#090d18] p-3 rounded-xl cursor-pointer"
+              className="relative flex items-center justify-between mt-2 text-xs text-slate-200 hover:bg-[#090d18] p-2 rounded-xl cursor-pointer"
               onClick={() => setShowMenu((prev) => !prev)}
             >
               <div className="flex items-center gap-3 ">

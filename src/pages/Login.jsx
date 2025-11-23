@@ -35,59 +35,64 @@ function Login() {
   };
 
   return (
-    <div className="flex flex-col justify-center content-center w-screen h-screen bg-[#252840]">
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#252840] px-4 py-8">
       <form
         onSubmit={handleLogin}
-        className="flex flex-col justify-center items-center w-full h-full bg-[#36395A] rounded-lg"
+        className="w-full max-w-md bg-[#36395A] rounded-3xl shadow-xl flex flex-col gap-8 px-10 py-12 md:px-14 md:py-16"
       >
-        <h1 className="text-white mb-2 text-4xl">Inicia sesión para continuar</h1>
+        <h1 className="text-white text-2xl md:text-3xl font-semibold text-center">Inicia sesión</h1>
 
-        <div className="w-1/2 mb-6">
-          <div className="flex flex-col bg-[#424459] rounded-lg p-3 px-7">
-            <label className="text-gray-400 text-sm font-semibold mb-2 block uppercase">
-              USUARIO (EMAIL)
-            </label>
-            <div className="flex flex-row items-center">
-              <FaRegUserCircle className="text-gray-400 text-xl mr-3" />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="diego@gmail.com"
-                className="flex-grow bg-transparent text-[#bebebe] outline-none placeholder-gray-500"
-                required
-              />
-            </div>
+        <div className="flex flex-col bg-[#545b88] rounded-2xl p-2 md:p-6 gap-4 shadow-md">
+          <label className="text-gray-200 text-xs md:text-sm font-semibold uppercase tracking-wide">
+            Usuario (Email)
+          </label>
+          <div className="flex items-center gap-3">
+            <FaRegUserCircle className="text-white text-2xl shrink-0" aria-hidden="true" />
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="diego@gmail.com"
+              className="flex-1 bg-transparent text-gray-100 placeholder-gray-300 text-sm md:text-base focus:outline-none"
+              required
+              autoComplete="email"
+              autoFocus
+            />
           </div>
         </div>
 
-        <div className="w-1/2 mb-6">
-          <div className="flex flex-col bg-[#424459] rounded-lg p-3 px-7">
-            <label className="text-gray-400 text-sm font-semibold mb-2 block uppercase">
-              CONTRASEÑA
-            </label>
-            <div className="flex flex-row items-center">
-              <CiLock className="text-gray-400 text-xl mr-3" />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="*******"
-                className="flex-grow bg-transparent text-[#bebebe] outline-none placeholder-gray-500"
-                required
-              />
-            </div>
+        <div className="flex flex-col bg-[#545b88] rounded-2xl p-5 md:p-6 gap-4 shadow-md">
+          <label className="text-gray-300 text-xs md:text-sm font-semibold uppercase tracking-wide">
+            Contraseña
+          </label>
+          <div className="flex items-center gap-3">
+            <CiLock className="text-gray-200 text-2xl shrink-0" aria-hidden="true" />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="•••••••"
+              className="flex-1 bg-transparent text-gray-100 placeholder-gray-400 text-sm md:text-base focus:outline-none"
+              required
+              autoComplete="current-password"
+            />
           </div>
         </div>
 
-        {error && <p className="text-red-400 mb-4">{error}</p>}
+        {error && (
+          <p className="text-red-400 text-sm text-center -mt-2">{error}</p>
+        )}
 
         <button
           type="submit"
-          className="bg-[#b0b0b0] text-black px-12 py-2 rounded-xl shadow-lg"
+          className="w-full bg-[#b0b0b0] hover:bg-white text-black font-medium tracking-wide px-6 py-3 rounded-xl shadow-lg transition active:scale-[.97] text-sm md:text-base"
         >
-          INICIAR SESIÓN
+          Iniciar sesión
         </button>
+
+        <div className="text-center text-[11px] text-gray-400 mt-2">
+          <p>¿Olvidaste tu contraseña? Recupera el acceso pronto.</p>
+        </div>
       </form>
     </div>
   );

@@ -143,13 +143,19 @@ function Register() {
               Foto de perfil (opcional)
             </label>
             <div className="flex items-center gap-3 bg-[#545b88] rounded-xl shadow-md px-4 py-3">
+              <label htmlFor="profileImage" className="cursor-pointer bg-indigo-500 hover:bg-indigo-600 text-white font-semibold px-4 py-2 rounded-lg shadow transition whitespace-nowrap">
+                {profileImage ? "Imagen seleccionada" : "Seleccionar imagen"}
+              </label>
               <input
                 id="profileImage"
                 type="file"
                 accept="image/*"
                 onChange={(e) => setProfileImage(e.target.files[0] ?? null)}
-                className="flex-1 bg-transparent text-gray-100 placeholder-gray-400 text-base focus:outline-none"
+                className="hidden"
               />
+              {profileImage && (
+                <span className="text-gray-200 text-xs truncate max-w-[120px]">{profileImage.name}</span>
+              )}
             </div>
           </div>
 

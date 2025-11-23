@@ -4,13 +4,14 @@ import { CiLock } from "react-icons/ci";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebase";
 import { useNavigate } from "react-router-dom";
+import { getAuth } from "firebase/auth";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
-  const uid = auth.currentUser.uid;
+  
 
   const handleLogin = async (e) => {
     e.preventDefault();

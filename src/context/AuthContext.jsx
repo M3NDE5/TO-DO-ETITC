@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { signOut } from "firebase/auth";
-import { auth } from "../firebase";
+import { auth, db } from "../firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 const AuthContext = createContext();
 
@@ -34,11 +35,28 @@ export function useAuth() {
 }
 
 // Devuelve la sesión/autenticación actual desde cualquier lugar (no solo hooks)
-export function getAuthSession() {
+export async function getAuthSession() {
   return new Promise((resolve) => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       unsubscribe();
-      resolve(currentUser);
+      if (currentUser) {
+        // Consultar Firestore para obtener el rol
+        try {
+          const docRef = doc(db, "usuarios", currentUser.uid);
+          const docSnap = await getDoc(docRef);
+          let role = null;
+          if (docSnap.exists()) {
+            role = docSnap.data().role || null;
+          }
+          // Retornar el usuario con el campo role
+          resolve({ ...currentUser, role });
+        } catch (error) {
+          // Si falla la consulta, retorna el usuario sin role
+          resolve({ ...currentUser, role: null });
+        }
+      } else {
+        resolve(null);
+      }
     });
   });
 }

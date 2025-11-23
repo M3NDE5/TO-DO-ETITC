@@ -153,11 +153,13 @@ function Dashboard() {
     });
   };
 
+  const [user, setUser] = useState({ displayName: '', role: '' });
 
 useEffect(() => {
     getAuthSession().then(user => {
       // manejar user
       console.log('Usuario autenticado:', user);
+      setUser(user);
     });
     }, []);
 
@@ -258,8 +260,8 @@ useEffect(() => {
             <div className="flex items-center gap-3 ">
               <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center" />
               <div>
-                <p className="font-semibold leading-tight">Diego Rodriguez</p>
-                <p className="text-[10px] text-slate-400">Estudiante</p>
+                <p className="font-semibold leading-tight">{user.displayName}</p>
+                <p className="text-[10px] text-slate-400">{user.role}</p>
               </div>
             </div>
             {showMenu && (

@@ -1,13 +1,18 @@
 import { useState } from "react";
 import { FaRegUserCircle } from "react-icons/fa";
 import { CiLock } from "react-icons/ci";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../firebase.js";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { auth, db } from "../firebase";
 import { Link } from "react-router-dom";
+import { setDoc, doc } from "firebase/firestore";
 
+// Si tienes funciones de perfil en AuthContext, podrías importarlas aquí
+// import { useAuth } from "../context/AuthContext";
 function Register() {
+  const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -16,11 +21,24 @@ function Register() {
     setError("");
     setSuccess("");
     try {
+      // Crear usuario en Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      console.log("Usuario registrado:", userCredential.user);
+      const user = userCredential.user;
+      // Actualizar displayName en perfil de usuario
+      await updateProfile(user, { displayName: nombre });
+      // Guardar rol y nombre en Firestore (usando db de firebase.js)
+      await setDoc(doc(db, "usuarios", user.uid), {
+        nombre,
+        email,
+        role,
+        uid: user.uid,
+        creado: new Date()
+      });
       setSuccess("¡Usuario registrado correctamente! Ya puedes iniciar sesión.");
+      setNombre("");
       setEmail("");
       setPassword("");
+      setRole("");
     } catch (err) {
       console.error(err);
       if (err.code === "auth/email-already-in-use") {
@@ -41,6 +59,25 @@ function Register() {
         <h2 className="text-white text-xl md:text-2xl font-semibold text-center mb-2">Crea tu cuenta</h2>
         <form onSubmit={handleRegister} className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
+            <label className="text-gray-200 text-xs md:text-sm font-semibold uppercase tracking-wide mb-1" htmlFor="nombre">
+              Nombre completo
+            </label>
+            <div className="flex items-center gap-3 bg-[#545b88] rounded-xl shadow-md px-4 py-3">
+              <FaRegUserCircle className="text-white text-2xl shrink-0" aria-hidden="true" />
+              <input
+                id="nombre"
+                type="text"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                placeholder="Ej: Diego Rodriguez"
+                className="flex-1 bg-transparent text-gray-100 placeholder-gray-300 text-base focus:outline-none"
+                required
+                autoComplete="name"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
             <label className="text-gray-200 text-xs md:text-sm font-semibold uppercase tracking-wide mb-1" htmlFor="email">
               Usuario (Email)
             </label>
@@ -55,7 +92,6 @@ function Register() {
                 className="flex-1 bg-transparent text-gray-100 placeholder-gray-300 text-base focus:outline-none"
                 required
                 autoComplete="email"
-                autoFocus
               />
             </div>
           </div>
@@ -75,6 +111,24 @@ function Register() {
                 className="flex-1 bg-transparent text-gray-100 placeholder-gray-400 text-base focus:outline-none"
                 required
                 autoComplete="new-password"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-gray-300 text-xs md:text-sm font-semibold uppercase tracking-wide mb-1" htmlFor="role">
+              Rol
+            </label>
+            <div className="flex items-center gap-3 bg-[#545b88] rounded-xl shadow-md px-4 py-3">
+              <input
+                id="role"
+                type="text"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                placeholder="Ej: estudiante"
+                className="flex-1 bg-transparent text-gray-100 placeholder-gray-400 text-base focus:outline-none"
+                required
+                autoComplete="off"
               />
             </div>
           </div>

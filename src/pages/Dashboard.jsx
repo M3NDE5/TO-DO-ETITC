@@ -257,6 +257,38 @@ function Dashboard() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editTask, setEditTask] = useState(null);
 
+  // Modal to schedule IA suggestion
+  const [showIaScheduleModal, setShowIaScheduleModal] = useState(false);
+
+  const extractSuggestion = (msg) => {
+    if (!msg) return "";
+    // try to parse formats like "Te sugiero agregar: ..." or just raw suggestion
+    const idx = msg.indexOf(":");
+    if (idx !== -1) return msg.slice(idx + 1).trim().replace(/^"|"$/g, "");
+    return msg.trim();
+  };
+
+  const openIaScheduleModal = () => {
+    const suggestion = extractSuggestion(iaMessage);
+    const todayIso = new Date().toISOString().slice(0, 10);
+    setNewTask((prev) => ({
+      ...prev,
+      name: suggestion || prev.name,
+      date: prev.date || todayIso,
+    }));
+    setShowIaScheduleModal(true);
+  };
+
+  const closeIaScheduleModal = () => {
+    setShowIaScheduleModal(false);
+  };
+
+  const saveIaScheduledTask = () => {
+    // reuse addTask to create the task, then close this modal
+    addTask();
+    setShowIaScheduleModal(false);
+  };
+
   const handleDeleteClick = (taskId) => {
     setTaskToDelete(taskId);
     setShowDeleteModal(true);
@@ -478,6 +510,17 @@ function Dashboard() {
                     <span className="text-indigo-100 text-sm">{iaMessage}</span>
                   </div>
                 ) : null}
+              {iaMessage && (
+                <div className="mt-3 flex justify-center">
+                  <button
+                    onClick={openIaScheduleModal}
+                    className="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-500 transition"
+                    title="Agendar sugerencia"
+                  >
+                    Agendar
+                  </button>
+                </div>
+              )}
               </section>
 
               <section aria-label="Calendario">
@@ -889,6 +932,118 @@ function Dashboard() {
       </div>
 
       {/* Modal de confirmación de borrado */}
+      {/* Modal para agendar a partir de la sugerencia de la IA */}
+      {showIaScheduleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md bg-indigo-900/95 rounded-3xl p-5 md:p-6 shadow-2xl border border-indigo-800 text-slate-100">
+            <div className="flex items-start justify-between mb-3">
+              <h3 className="text-lg font-semibold">Agendar sugerencia</h3>
+              <button
+                onClick={closeIaScheduleModal}
+                aria-label="Cerrar"
+                className="w-8 h-8 rounded-full bg-indigo-700 hover:bg-indigo-600 text-white flex items-center justify-center shadow"
+              >
+                <span className="material-icons text-[18px]">close</span>
+              </button>
+            </div>
+            <div className="flex flex-col gap-3">
+              <p className="text-sm text-indigo-100">{iaMessage}</p>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Nombre</label>
+                <input
+                  name="name"
+                  value={newTask.name}
+                  onChange={handleInputChange}
+                  className="w-full rounded-xl bg-indigo-800/40 border border-indigo-600 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                />
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1 space-y-1">
+                  <label className="text-xs font-medium">Fecha</label>
+                  <input
+                    name="date"
+                    type="date"
+                    value={newTask.date}
+                    onChange={handleInputChange}
+                    className="w-full rounded-xl bg-indigo-800/40 border border-indigo-600 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  />
+                </div>
+                <div className="w-32 space-y-1">
+                  <label className="text-xs font-medium">Hora</label>
+                  <input
+                    name="time"
+                    type="time"
+                    value={newTask.time}
+                    onChange={handleInputChange}
+                    className="w-full rounded-xl bg-indigo-800/40 border border-indigo-600 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Prioridad</label>
+                <select
+                  name="priority"
+                  value={newTask.priority}
+                  onChange={handleInputChange}
+                  className="w-full rounded-xl bg-indigo-800/40 border border-indigo-600 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                >
+                  <option value="alta">Alta</option>
+                  <option value="media">Media</option>
+                  <option value="baja">Baja</option>
+                  <option value="personalizada">Personalizada</option>
+                </select>
+                {newTask.priority === "personalizada" && (
+                  <input
+                    name="customPriority"
+                    value={newTask.customPriority}
+                    onChange={handleInputChange}
+                    placeholder="Escribe la prioridad"
+                    className="w-full mt-1 rounded-xl bg-indigo-800/40 border border-indigo-600 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  />
+                )}
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Estado</label>
+                <select
+                  name="status"
+                  value={newTask.status}
+                  onChange={handleInputChange}
+                  className="w-full rounded-xl bg-indigo-800/40 border border-indigo-600 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                >
+                  <option value="pendiente">Pendiente</option>
+                  <option value="trabajando">Trabajándola</option>
+                  <option value="ejecutando">Ejecutando</option>
+                  <option value="finalizada">Finalizada</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Tema / descripción</label>
+                <input
+                  name="topic"
+                  value={newTask.topic || ""}
+                  onChange={handleInputChange}
+                  placeholder="Descripción corta"
+                  className="w-full rounded-xl bg-indigo-800/40 border border-indigo-600 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={saveIaScheduledTask}
+                className="flex-1 py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-500 transition"
+              >
+                Guardar
+              </button>
+              <button
+                onClick={closeIaScheduleModal}
+                className="flex-1 py-2 rounded-xl bg-slate-700 text-slate-100 font-semibold hover:bg-slate-600 transition"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-md p-4">
           <div className="bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl p-6 w-full max-w-xs flex flex-col items-center text-slate-100">

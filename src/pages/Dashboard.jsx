@@ -12,7 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { handleLogout } from "../context/AuthContext";
 import { getAuthSession } from "../context/AuthContext";
 import { db } from "../firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { GoClockFill } from "react-icons/go";
 import PomodoroTimer from "../componentes/PomodoroTimer";
 
@@ -48,6 +48,11 @@ function Dashboard() {
   const [showPomodoroCloseConfirm, setShowPomodoroCloseConfirm] = useState(false);
   const [pomodoroTime, setPomodoroTime] = useState(20 * 60); // 20 min in seconds
   const [pomodoroPaused, setPomodoroPaused] = useState(false);
+  // Configuración Pomodoro externa (duraciones por usuario)
+  const DEFAULT_DURATIONS = { pomodoro: 25, short: 5, long: 15 };
+  const [userPomodoroDurations, setUserPomodoroDurations] = useState(DEFAULT_DURATIONS);
+  const [tempDurations, setTempDurations] = useState(DEFAULT_DURATIONS);
+  const [showPomodoroConfig, setShowPomodoroConfig] = useState(false);
 
   // Open Pomodoro modal (inicia automáticamente)
   const openPomodoroModal = (task) => {
@@ -392,7 +397,8 @@ function Dashboard() {
       }
       // obtener datos adicionales desde Firestore (role, photoURL guardado)
       try {
-        const userDoc = await getDoc(doc(db, "usuarios", firebaseUser.uid));
+        const userDocRef = doc(db, "usuarios", firebaseUser.uid);
+        const userDoc = await getDoc(userDocRef);
         const userData = userDoc.exists() ? userDoc.data() : {};
         setUser({
           displayName: firebaseUser.displayName || userData.nombre || "",
@@ -400,6 +406,16 @@ function Dashboard() {
           photoURL: firebaseUser.photoURL || userData.photoURL || "",
           uid: firebaseUser.uid,
         });
+        if (userData.pomodoroDurations) {
+          const { pomodoro, short, long } = userData.pomodoroDurations;
+          const loaded = {
+            pomodoro: Number(pomodoro) || DEFAULT_DURATIONS.pomodoro,
+            short: Number(short) || DEFAULT_DURATIONS.short,
+            long: Number(long) || DEFAULT_DURATIONS.long,
+          };
+          setUserPomodoroDurations(loaded);
+          setTempDurations(loaded);
+        }
       } catch (err) {
         console.error("Error al obtener usuario Firestore:", err);
         setUser({
@@ -605,11 +621,12 @@ function Dashboard() {
             </div>
 
             {/* Fixed user info section */}
-            <div
-              className="relative flex items-center justify-between mt-2 text-xs text-slate-200 hover:bg-[#090d18] p-2 rounded-xl cursor-pointer"
-              onClick={() => setShowMenu((prev) => !prev)}
-            >
-              <div className="flex items-center gap-3 ">
+            <div className="relative flex items-center justify-between mt-2 text-xs text-slate-200 p-2 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setShowMenu((prev) => !prev)}
+                className="flex items-center gap-3 flex-1 hover:bg-[#090d18] rounded-lg px-2 py-1 text-left"
+              >
                 {user.photoURL ? (
                   <img
                     src={user.photoURL}
@@ -619,21 +636,30 @@ function Dashboard() {
                 ) : (
                   <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center" />
                 )}
-                <div>
-                  <p className="font-semibold leading-tight">
+                <div className="flex flex-col">
+                  <p className="font-semibold leading-tight truncate max-w-[120px]">
                     {user.displayName}
                   </p>
-                  <p className="text-[10px] text-slate-400">{user.role}</p>
+                  <p className="text-[10px] text-slate-400 truncate max-w-[120px]">{user.role}</p>
                 </div>
-              </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTempDurations(userPomodoroDurations);
+                  setShowPomodoroConfig(true);
+                }}
+                className="ml-2 w-9 h-9 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 flex items-center justify-center text-indigo-200 shadow focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                title="Configurar Pomodoro"
+              >
+                <span className="material-icons text-[20px]">timer</span>
+              </button>
               {showMenu && (
-                <div className="absolute right-0 top-12 z-10 bg-slate-900 border border-slate-700 rounded-xl shadow-lg py-2 px-4 min-w-[140px] flex flex-col">
+                <div className="absolute right-0 top-12 z-20 bg-slate-900 border border-slate-700 rounded-xl shadow-lg py-2 px-4 min-w-[150px] flex flex-col">
                   <button
                     className="text-left text-sm text-red-400 hover:text-red-600 py-1 px-2 rounded transition font-semibold"
                     onClick={handleLogout}
-                  >
-                    Cerrar sesión
-                  </button>
+                  >Cerrar sesión</button>
                 </div>
               )}
             </div>
@@ -1215,6 +1241,7 @@ function Dashboard() {
                   autoStart={true}
                   task={pomodoroTask}
                   fullScreen
+                  durations={userPomodoroDurations}
                 />
               </div>
               {showPomodoroCloseConfirm && (
@@ -1250,6 +1277,7 @@ function Dashboard() {
                 onClose={requestPomodoroClose}
                 autoStart={true}
                 task={pomodoroTask}
+                durations={userPomodoroDurations}
               />
               {showPomodoroCloseConfirm && (
                 <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/40 backdrop-blur-md">
@@ -1273,6 +1301,94 @@ function Dashboard() {
             </div>
           </div>
         )
+      )}
+      {/* Modal configuración Pomodoro */}
+      {showPomodoroConfig && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowPomodoroConfig(false); }}
+        >
+          <div className="w-full max-w-sm bg-slate-900/95 rounded-2xl border border-slate-700 shadow-2xl p-6 text-slate-100 flex flex-col gap-4">
+            <div className="flex items-start justify-between mb-1">
+              <h3 className="text-lg font-semibold">Configurar Pomodoro</h3>
+              <button
+                type="button"
+                onClick={() => setShowPomodoroConfig(false)}
+                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-slate-600"
+                aria-label="Cerrar"
+              >
+                <span className="material-icons text-[18px]">close</span>
+              </button>
+            </div>
+            <p className="text-xs text-slate-400">Personaliza las duraciones (minutos). Se guardan en tu cuenta.</p>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const clean = {
+                  pomodoro: Math.min(Math.max(Number(tempDurations.pomodoro) || DEFAULT_DURATIONS.pomodoro, 1), 180),
+                  short: Math.min(Math.max(Number(tempDurations.short) || DEFAULT_DURATIONS.short, 1), 60),
+                  long: Math.min(Math.max(Number(tempDurations.long) || DEFAULT_DURATIONS.long, 1), 120),
+                };
+                setUserPomodoroDurations(clean);
+                try {
+                  if (user && user.uid) {
+                    await updateDoc(doc(db, 'usuarios', user.uid), { pomodoroDurations: clean });
+                  }
+                } catch (err) {
+                  console.error('Error guardando duraciones Pomodoro:', err);
+                }
+                setShowPomodoroConfig(false);
+              }}
+              className="flex flex-col gap-3"
+            >
+              <div className="flex flex-col gap-1">
+                <label htmlFor="durPomodoro" className="text-xs font-medium">Pomodoro</label>
+                <input
+                  id="durPomodoro"
+                  type="number"
+                  min={1}
+                  max={180}
+                  value={tempDurations.pomodoro}
+                  onChange={(e) => setTempDurations((prev) => ({ ...prev, pomodoro: e.target.value }))}
+                  className="w-full rounded-xl bg-slate-800 border border-slate-600 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="durShort" className="text-xs font-medium">Descanso Corto</label>
+                <input
+                  id="durShort"
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={tempDurations.short}
+                  onChange={(e) => setTempDurations((prev) => ({ ...prev, short: e.target.value }))}
+                  className="w-full rounded-xl bg-slate-800 border border-slate-600 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="durLong" className="text-xs font-medium">Descanso Largo</label>
+                <input
+                  id="durLong"
+                  type="number"
+                  min={1}
+                  max={120}
+                  value={tempDurations.long}
+                  onChange={(e) => setTempDurations((prev) => ({ ...prev, long: e.target.value }))}
+                  className="w-full rounded-xl bg-slate-800 border border-slate-600 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                />
+              </div>
+              <button
+                type="submit"
+                className="mt-1 w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              >Guardar</button>
+            </form>
+            <button
+              type="button"
+              onClick={() => setShowPomodoroConfig(false)}
+              className="w-full rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-100 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-slate-600"
+            >Cancelar</button>
+          </div>
+        </div>
       )}
     </div>
   );

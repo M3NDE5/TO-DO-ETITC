@@ -226,17 +226,34 @@ function Dashboard() {
 
   const handleEditChange = (e) => {
     const { name, value } = e.target;
-    setEditTask((prev) => ({ ...prev, [name]: value }));
+    setEditTask((prev) => {
+      if (!prev) return prev;
+      if (name === "priority") {
+        if (value === "personalizada") {
+          const prevP = (prev.priority || "").toString().toLowerCase();
+          const customVal = ["alta", "media", "baja"].includes(prevP)
+            ? ""
+            : prev.priority || "";
+          return { ...prev, priority: "personalizada", customPriority: customVal || prev.customPriority || "" };
+        }
+        return { ...prev, priority: value, customPriority: "" };
+      }
+      return { ...prev, [name]: value };
+    });
   };
 
   const saveEditedTask = async () => {
     if (!editTask || !editTask.id) return;
-    const { id, name, date, time, priority, status, topic } = editTask;
+    const { id, name, date, time, priority, status, topic, customPriority } = editTask;
+    const priorityToSave =
+      priority === "personalizada" && customPriority && customPriority.trim()
+        ? customPriority.trim()
+        : priority;
     try {
-      await actualizarTarea(id, { name, date, time, priority, status, topic });
+      await actualizarTarea(id, { name, date, time, priority: priorityToSave, status, topic });
       closeEditModal();
     } catch (err) {
-      console.error('Error actualizando tarea:', err);
+      console.error("Error actualizando tarea:", err);
     }
   };
 
@@ -302,9 +319,27 @@ function Dashboard() {
     return unsubscribe;
   }, [user]);
 
+  const editPrioritySelectValue = useMemo(() => {
+    if (!editTask) return "media";
+    const p = (editTask.priority || "").toString().toLowerCase();
+    return ["alta", "media", "baja"].includes(p) ? p : "personalizada";
+  }, [editTask]);
+
   // RETURN = TODO LO QUE TIENE QUE VER CON HTML
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col">
+      {/* Local styles to hide scrollbar only for the tasks section (no changes to index.css) */}
+      <style>{`
+        .no-scrollbar-local {
+          -ms-overflow-style: none; /* IE and Edge */
+          scrollbar-width: none; /* Firefox */
+        }
+        .no-scrollbar-local::-webkit-scrollbar {
+          display: none; /* Chrome, Safari and Opera */
+          width: 0;
+          height: 0;
+        }
+      `}</style>
       {/* Contenido principal */}
       <div className="flex-1 flex items-center justify-center px-3 md:px-6 py-4 md:py-6">
         <div className="w-full max-w-6xl flex flex-col lg:flex-row gap-4 md:gap-6 h-full lg:h-[92vh]">
@@ -468,7 +503,7 @@ function Dashboard() {
               </h2>
             </header>
 
-            <section className="space-y-4 flex-1 overflow-auto">
+            <section className="space-y-4 flex-1 overflow-auto no-scrollbar-local">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-semibold">
                   {selectedDate
@@ -498,12 +533,28 @@ function Dashboard() {
                   <div className="flex items-center gap-4">
                     <span
                       className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                        index === 0 ? "border-blue-600" : "border-slate-400"
+                        task.priority && task.priority.toString().toLowerCase().includes("alta")
+                          ? "border-red-600"
+                          : task.priority && task.priority.toString().toLowerCase().includes("media")
+                          ? "border-orange-500"
+                          : task.priority && task.priority.toString().toLowerCase().includes("baja")
+                          ? "border-emerald-600"
+                          : "border-slate-400"
                       }`}
+                      title={`Prioridad: ${task.priority || "-"}`}
+                      aria-hidden
                     >
-                      {index === 0 && (
-                        <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-                      )}
+                      <span
+                        className={`${
+                          task.priority && task.priority.toString().toLowerCase().includes("alta")
+                            ? "bg-red-600"
+                            : task.priority && task.priority.toString().toLowerCase().includes("media")
+                            ? "bg-orange-400"
+                            : task.priority && task.priority.toString().toLowerCase().includes("baja")
+                            ? "bg-emerald-500"
+                            : "bg-slate-400"
+                        } w-2.5 h-2.5 rounded-full`}
+                      />
                     </span>
                     <div className="flex flex-col">
                       <span className="text-sm font-medium">{task.name}</span>
@@ -521,12 +572,25 @@ function Dashboard() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => handleDeleteClick(task.id)}
-                    className="w-7 h-7 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                  >
-                    <span className="material-icons text-[16px]">close</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => openEditModal(task)}
+                      className="w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                      aria-label="Editar tarea"
+                      title="Editar"
+                    >
+                      <span className="material-icons text-[16px]">edit</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleDeleteClick(task.id)}
+                      className="w-7 h-7 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                      aria-label="Eliminar tarea"
+                      title="Eliminar"
+                    >
+                      <span className="material-icons text-[16px]">close</span>
+                    </button>
+                  </div>
                 </div>
               ))}
             </section>
@@ -707,6 +771,114 @@ function Dashboard() {
           </div>
         </div>
       )}
+
+        {/* Modal de edición de tarea */}
+        {showEditModal && editTask && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="bg-white rounded-2xl p-6 shadow-xl text-slate-900 w-full max-w-md">
+              <h3 className="text-lg font-semibold mb-3">Editar tarea</h3>
+              <div className="flex flex-col gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium">Nombre</label>
+                  <input
+                    name="name"
+                    value={editTask.name || ""}
+                    onChange={handleEditChange}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <div className="flex-1 space-y-1">
+                    <label className="text-xs font-medium">Fecha</label>
+                    <input
+                      name="date"
+                      type="date"
+                      value={editTask.date || ""}
+                      onChange={handleEditChange}
+                      className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                    />
+                  </div>
+                  <div className="w-28 space-y-1">
+                    <label className="text-xs font-medium">Hora</label>
+                    <input
+                      name="time"
+                      type="time"
+                      value={editTask.time || ""}
+                      onChange={handleEditChange}
+                      className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-medium">Prioridad</label>
+                  <select
+                    name="priority"
+                    value={editPrioritySelectValue}
+                    onChange={handleEditChange}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                  >
+                    <option value="alta">Alta</option>
+                    <option value="media">Media</option>
+                    <option value="baja">Baja</option>
+                    <option value="personalizada">Personalizada</option>
+                  </select>
+
+                  {editPrioritySelectValue === "personalizada" && (
+                    <input
+                      name="customPriority"
+                      value={editTask.customPriority || (editTask.priority || "")}
+                      onChange={handleEditChange}
+                      placeholder="Escribe la prioridad"
+                      className="w-full mt-1 rounded-xl border border-slate-300 px-3 py-2"
+                    />
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-medium">Estado</label>
+                  <select
+                    name="status"
+                    value={editTask.status || "pendiente"}
+                    onChange={handleEditChange}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                  >
+                    <option value="pendiente">Pendiente</option>
+                    <option value="trabajando">Trabajándola</option>
+                    <option value="ejecutando">Ejecutando</option>
+                    <option value="finalizada">Finalizada</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-medium">Descripción</label>
+                  <input
+                    name="topic"
+                    value={editTask.topic || ""}
+                    onChange={handleEditChange}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={saveEditedTask}
+                  className="flex-1 py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700"
+                >
+                  Guardar
+                </button>
+                <button
+                  onClick={closeEditModal}
+                  className="flex-1 py-2 rounded-xl bg-slate-200 text-slate-900 font-semibold hover:bg-slate-300"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       {/* Menú inferior para mobile */}
       {!isDesktop && (

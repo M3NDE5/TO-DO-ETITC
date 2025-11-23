@@ -57,6 +57,11 @@ function Dashboard() {
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
 
   const [isDesktop, setIsDesktop] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    // inicializar en la fecha de hoy en formato YYYY-MM-DD
+    const d = new Date();
+    return d.toISOString().slice(0, 10);
+  });
 
   useEffect(() => {
     const checkSize = () => {
@@ -88,9 +93,27 @@ function Dashboard() {
   );
 
   const calendarDays = useMemo(() => {
+    // Sakamoto's algorithm will be used to compute weekday reliably
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    return Array.from({ length: daysInMonth }, (_, index) => index + 1);
+    const getWeekday = (y, m, d) => {
+      // Sakamoto algorithm: returns 0=Sunday .. 6=Saturday
+      const t = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4];
+      if (m < 3) y -= 1;
+      return (y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) + t[m - 1] + d) % 7;
+    };
+    const firstDayIndex = getWeekday(currentYear, currentMonth + 1, 1); // month is 1-12 for the algorithm
+    // Create array with leading nulls for offset, then day numbers
+    const arr = [];
+    for (let i = 0; i < firstDayIndex; i++) arr.push(null);
+    for (let d = 1; d <= daysInMonth; d++) arr.push(d);
+    return arr;
   }, [currentMonth, currentYear]);
+
+  // tareas filtradas según fecha seleccionada (formato YYYY-MM-DD)
+  const filteredTasks = useMemo(() => {
+    if (!selectedDate) return tasks;
+    return tasks.filter((t) => t.date === selectedDate);
+  }, [tasks, selectedDate]);
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
@@ -271,24 +294,33 @@ useEffect(() => {
                   ))}
                 </div>
                 <div className="grid grid-cols-7 gap-1 text-[10px] text-center">
-                  {calendarDays.map((day) => {
+                  {calendarDays.map((day, idx) => {
+                    if (day === null) {
+                      // empty cell to align the first day
+                      return <div key={`empty-${idx}`} className="inline-flex items-center justify-center rounded-full px-1 py-[6px]" />;
+                    }
                     const date = new Date(currentYear, currentMonth, day);
-                    const isToday =
-                      date.getDate() === today.getDate() &&
-                      date.getMonth() === today.getMonth() &&
-                      date.getFullYear() === today.getFullYear();
+                    const iso = date.toISOString().slice(0, 10);
+                    const isToday = day === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear();
                     const isHoliday = isColHoliday(date);
 
-                    const baseClass = "inline-flex items-center justify-center rounded-full px-1 py-[2px]";
+                    const baseClass = "inline-flex items-center justify-center rounded-full px-1 py-[2px] cursor-pointer";
 
                     let colorClass = "text-slate-100";
                     if (isHoliday) colorClass = "text-red-400 font-semibold";
-                    if (isToday) colorClass = "bg-rose-500 text-white font-semibold";
+                    if (isToday && !selectedDate) colorClass = "bg-rose-500 text-white font-semibold";
+                    if (selectedDate === iso) colorClass = "bg-indigo-500 text-white font-semibold";
 
                     return (
-                      <span key={day} className={`${baseClass} ${colorClass}`}>
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => setSelectedDate(iso)}
+                        className={`${baseClass} ${colorClass}`}
+                        aria-pressed={selectedDate === iso}
+                      >
                         {day}
-                      </span>
+                      </button>
                     );
                   })}
                 </div>
@@ -343,7 +375,21 @@ useEffect(() => {
           </header>
 
           <section className="space-y-4 flex-1 overflow-auto">
-            {tasks.map((task, index) => (
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold">
+                {selectedDate ? new Date(selectedDate).toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) : 'Todas las tareas'}
+              </h3>
+              {selectedDate && (
+                <button
+                  onClick={() => setSelectedDate(null)}
+                  className="text-xs text-indigo-300 hover:text-indigo-400"
+                >
+                  Ver todas
+                </button>
+              )}
+            </div>
+
+            {filteredTasks.map((task, index) => (
               <div
                 key={task.id ?? index}
                 className="bg-slate-100 text-slate-900 rounded-2xl px-6 py-4 flex items-center justify-between shadow-md"
@@ -363,6 +409,9 @@ useEffect(() => {
                     </span>
                     <span className="text-[11px] text-slate-500 capitalize">
                       Prioridad: {task.priority} • Estado: {task.status}
+                    </span>
+                    <span className="text-[11px] text-slate-500 capitalize">
+                      Descripcion: {task.topic}
                     </span>
                   </div>
                 </div>
